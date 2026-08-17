@@ -254,8 +254,16 @@ export function Step5() {
             <span className="block text-xs text-muted-foreground">
               Räknar frigjord tid som minskad kostnad vid förändring.
             </span>
+            {realloc.valueFreed === 0 && (
+              <span className="mt-1 block text-xs text-negative">
+                Ingen frigjord tid att räkna med än — lägg till personalrader i
+                steg 2 och 3 med nyttotyp ”Omfördelningsnytta ↺” och lägre antal
+                timmar vid förändring.
+              </span>
+            )}
           </span>
         </label>
+
       </SectionCard>
 
       <SectionCard
