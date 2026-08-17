@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { ErrorBanner, SectionCard } from "./shared";
+import { ErrorBanner, FactCheckBadge, SectionCard } from "./shared";
 import { callAgent, type ChatMessage } from "@/lib/nyttokalkyl/agent";
 import {
   emptyCostItem,
@@ -50,6 +50,10 @@ export function StartChat({
   const [draft, setDraft] = useState<DraftPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [factCheck, setFactCheck] = useState<{
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
+  }>({});
 
   const send = async () => {
     const description = input.trim();
@@ -69,6 +73,7 @@ export function StartChat({
       return;
     }
     const data = res.data ?? {};
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setDraft(data);
     if (data.chatReply) {
       setHistory((h) => [...h, { role: "assistant", content: data.chatReply! }]);
@@ -243,7 +248,16 @@ export function StartChat({
         )}
       </div>
 
-      <SectionCard title="Förhandsgranskning" className="h-fit lg:sticky lg:top-24">
+      <SectionCard
+        title="Förhandsgranskning"
+        action={
+          <FactCheckBadge
+            factChecked={factCheck.factChecked}
+            report={factCheck.report}
+          />
+        }
+        className="h-fit lg:sticky lg:top-24"
+      >
         {!draft ? (
           <p className="text-sm text-muted-foreground">
             Här sammanfattas AI:ns förslag löpande medan ni chattar.

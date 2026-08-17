@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export function SectionCard({
   title,
@@ -122,6 +127,35 @@ export function AiBadge() {
     <span className="inline-flex items-center rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-dark">
       AI
     </span>
+  );
+}
+
+export function FactCheckBadge({
+  factChecked,
+  report,
+}: {
+  factChecked?: boolean | undefined;
+  report?: string | undefined;
+}) {
+  if (!factChecked) return null;
+  const badge = (
+    <span className="inline-flex items-center gap-1 rounded-full border border-positive/40 bg-positive/10 px-2 py-0.5 text-[11px] font-medium text-positive-strong">
+      <Check className="size-3" />
+      Faktagranskat
+    </span>
+  );
+  if (!report) return badge;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="no-print cursor-pointer">
+          {badge}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="max-h-64 w-80 overflow-y-auto text-xs leading-relaxed whitespace-pre-line">
+        {report}
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -16,6 +16,7 @@ import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
   AiBadge,
   AiButton,
+  FactCheckBadge,
   EmptyState,
   Field,
   SectionCard,
@@ -50,6 +51,10 @@ export function Step1({
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [picked, setPicked] = useState<Record<number, boolean>>({});
+  const [factCheck, setFactCheck] = useState<{
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
+  }>({});
 
   const updateBenefit = (index: number, patch: Partial<Benefit>) =>
     setState((s) => ({
@@ -91,6 +96,7 @@ export function Step1({
       return;
     }
     const list = res.data?.benefits ?? [];
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setSuggestions(list);
     setPicked(Object.fromEntries(list.map((_, i) => [i, true])));
   };
@@ -197,11 +203,15 @@ export function Step1({
       >
         {suggestions && (
           <div className="mb-5 space-y-3 rounded-xl border border-brand/30 bg-brand-soft p-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <AiBadge />
               <p className="text-sm font-medium">
                 Förslag från AI — välj vilka som ska läggas till.
               </p>
+              <FactCheckBadge
+                factChecked={factCheck.factChecked}
+                report={factCheck.report}
+              />
             </div>
             {suggestions.length === 0 && (
               <p className="text-sm text-muted-foreground">

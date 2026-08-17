@@ -4,10 +4,17 @@ export type AgentAction =
   | "suggest_costs"
   | "assess_qualitative"
   | "review_calculation"
+  | "suggest_followup"
   | "chat";
 
+export interface FactCheckMeta {
+  factChecked?: boolean | undefined;
+  factCheckReport?: string | undefined;
+  factCheckError?: string | undefined;
+}
+
 export type AgentResult<T = unknown> =
-  | { success: true; action: AgentAction; data: T }
+  | ({ success: true; action: AgentAction; data: T } & FactCheckMeta)
   | { success: false; error: string };
 
 const DEFAULT_WEBHOOK_URL =
@@ -42,14 +49,23 @@ export async function callAgent<T = unknown>(
       return { success: false, error: `AI-tjänsten svarade ${res.status}.` };
     }
     const json = (await res.json()) as
-      | { success?: boolean; action?: AgentAction; data?: T; error?: string }
+      | ({ success?: boolean; action?: AgentAction; data?: T; error?: string } &
+          FactCheckMeta)
       | T;
     if (json && typeof json === "object" && "data" in json) {
-      const j = json as { success?: boolean; data?: T; error?: string };
+      const j = json as { success?: boolean; data?: T; error?: string } &
+        FactCheckMeta;
       if (j.success === false) {
         return { success: false, error: j.error ?? "Okänt fel från AI:n." };
       }
-      return { success: true, action, data: j.data as T };
+      return {
+        success: true,
+        action,
+        data: j.data as T,
+        factChecked: j.factChecked,
+        factCheckReport: j.factCheckReport,
+        factCheckError: j.factCheckError,
+      };
     }
     return { success: true, action, data: json as T };
   } catch (e) {
