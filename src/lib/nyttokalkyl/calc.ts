@@ -113,8 +113,8 @@ export function movementLabel(movement: number): string {
     "Mycket stor förflyttning",
   ];
   const abs = Math.min(Math.abs(movement), 4);
-  if (movement === 0) return grades[0];
-  if (movement > 0) return grades[abs];
+  if (movement === 0) return grades[0]!;
+  if (movement > 0) return grades[abs]!;
   const negatives = [
     "Ingen försämring",
     "Liten försämring",
@@ -122,7 +122,7 @@ export function movementLabel(movement: number): string {
     "Stor försämring",
     "Mycket stor försämring",
   ];
-  return negatives[abs];
+  return negatives[abs]!;
 }
 
 export interface QualRow {
