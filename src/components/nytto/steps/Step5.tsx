@@ -67,6 +67,19 @@ export function Step5() {
 
   const empty = !hasAnyData(state);
 
+  // Förklara varför reglaget inte gör någon skillnad.
+  const changeStaff = state.costChange.staff;
+  const taggedRows = changeStaff.filter(
+    (r) => r.benefitType === "Omfördelningsnytta ↺",
+  );
+  const reallocBlockReason =
+    state.costToday.staff.length === 0 || changeStaff.length === 0
+      ? "Lägg till personalrader i steg 2 (idag) och steg 3 (vid förändring) för att kunna räkna på frigjord tid."
+      : taggedRows.length === 0
+        ? "Ingen personalrad i steg 3 är taggad ”Omfördelningsnytta ↺”. Ändra ”Typ av nytta” på raden för att räkna med frigjord tid."
+        : "Timmar och lön är lika i steg 2 och 3 — sätt färre timmar (eller lägre lön) på raden i steg 3 för att få frigjord tid.";
+
+
   // När omfördelningsnyttan ingår räknas frigjord tid som minskad kostnad vid
   // förändring — visa samma justering i scenariografen.
   const reallocAdjustment = state.reallocationInGraph
@@ -259,21 +272,28 @@ export function Step5() {
             onCheckedChange={(v) =>
               setState((s) => ({ ...s, reallocationInGraph: v }))
             }
+            disabled={realloc.valueFreed === 0}
           />
           <span className="text-sm">
             Inkludera omfördelningsnytta i grafen
             <span className="block text-xs text-muted-foreground">
               Räknar frigjord tid som minskad kostnad vid förändring.
+              {realloc.valueFreed !== 0 && (
+                <>
+                  {" "}
+                  Just nu {formatKr(realloc.valueFreed)}/år (
+                  {formatNumber(realloc.hoursFreed)} h).
+                </>
+              )}
             </span>
             {realloc.valueFreed === 0 && (
               <span className="mt-1 block text-xs text-negative">
-                Ingen frigjord tid att räkna med än — lägg till personalrader i
-                steg 2 och 3 med nyttotyp ”Omfördelningsnytta ↺” och lägre antal
-                timmar vid förändring.
+                {reallocBlockReason}
               </span>
             )}
           </span>
         </label>
+
 
       </SectionCard>
 
