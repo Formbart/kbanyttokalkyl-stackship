@@ -12,7 +12,15 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { AiBadge, AiButton, Field, KpiCard, SectionCard, WarningBanner } from "./shared";
+import {
+  AiBadge,
+  AiButton,
+  FactCheckBadge,
+  Field,
+  KpiCard,
+  SectionCard,
+  WarningBanner,
+} from "./shared";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   COST_TYPES,

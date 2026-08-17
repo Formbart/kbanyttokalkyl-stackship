@@ -96,6 +96,7 @@ export function Step1({
       return;
     }
     const list = res.data?.benefits ?? [];
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setSuggestions(list);
     setPicked(Object.fromEntries(list.map((_, i) => [i, true])));
   };
