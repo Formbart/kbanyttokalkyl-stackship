@@ -338,6 +338,14 @@ export function Step5() {
               tone={realloc.valueFreed >= 0 ? "positive" : "negative"}
             />
           </div>
+          {realloc.hoursFreed === 0 && realloc.valueFreed === 0 && (
+            <p className="mt-4 rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand-dark">
+              Inget att räkna på än. Lägg till personalrader i <strong>steg 2
+              (idag)</strong> och <strong>steg 3 (vid förändring)</strong> med
+              samma yrkesroll, sätt nyttotyp ”Omfördelningsnytta ↺” på raden i
+              steg 3 och ange färre timmar där än idag.
+            </p>
+          )}
         </SectionCard>
 
         <SectionCard
