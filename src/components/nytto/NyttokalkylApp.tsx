@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { NyttokalkylProvider, useNyttokalkyl } from "@/lib/nyttokalkyl/store";
