@@ -52,6 +52,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     staff?: (StaffToday & StaffChange)[];
     assumptions?: string;
   } | null>(null);
+  const [factCheck, setFactCheck] = useState<{
+    factChecked?: boolean;
+    report?: string;
+  }>({});
 
   const setItems = (items: CostItem[]) =>
     setState((s) => ({ ...s, [key]: { ...s[key], items } }) as typeof s);
@@ -112,6 +116,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       toast.error(res.error);
       return;
     }
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setSuggestion(res.data ?? {});
   };
 
@@ -172,9 +177,13 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       >
         {suggestion && (
           <div className="mb-5 space-y-3 rounded-xl border border-brand/30 bg-brand-soft p-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <AiBadge />
               <p className="text-sm font-medium">Förslag från AI</p>
+              <FactCheckBadge
+                factChecked={factCheck.factChecked}
+                report={factCheck.report}
+              />
             </div>
             {suggestion.assumptions && (
               <WarningBanner>

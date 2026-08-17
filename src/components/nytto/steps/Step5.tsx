@@ -43,6 +43,10 @@ export function Step5() {
   const { state, setState } = useNyttokalkyl();
   const [loading, setLoading] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
+  const [factCheck, setFactCheck] = useState<{
+    factChecked?: boolean;
+    report?: string;
+  }>({});
 
   const todayCalc = computeCostSheet(state.costToday, state.project.startYear);
   const changeCalc = computeCostSheet(state.costChange, state.project.startYear);
@@ -399,7 +403,11 @@ export function Step5() {
       {review && (
         <SectionCard title="AI-granskning av kalkylen">
           <div className="space-y-4 text-sm">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <FactCheckBadge
+                factChecked={factCheck.factChecked}
+                report={factCheck.report}
+              />
               <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-dark">
                 Tillförlitlighet:{" "}
                 {review.confidence === "high"
