@@ -173,11 +173,10 @@ export function Step1({
           <Field
             label="Startår"
             hint="Styr den sexåriga kalkylperioden i steg 2, 3 och 5."
-            className="max-w-40"
           >
             <Input
               type="number"
-              className="num"
+              className="num max-w-40"
               value={project.startYear}
               onChange={(e) =>
                 updateProject({ startYear: Number(e.target.value) || 0 })
