@@ -1,12 +1,54 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { EmptyState, Field, SectionCard } from "../shared";
-import { benefitSentence, emptyFollowUp } from "@/lib/nyttokalkyl/types";
+import { AiButton, EmptyState, Field, SectionCard } from "../shared";
+import { callAgent } from "@/lib/nyttokalkyl/agent";
+import {
+  QUALITATIVE_TYPES,
+  benefitSentence,
+  emptyFollowUp,
+  type BenefitType,
+  type FollowUp,
+} from "@/lib/nyttokalkyl/types";
 
 export function Step6() {
   const { state, setFollowUp } = useNyttokalkyl();
   const benefits = state.project.benefits;
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
+
+  const suggestFollowUp = async (index: number) => {
+    const b = benefits[index]!;
+    setLoadingIndex(index);
+    const isQualitative = QUALITATIVE_TYPES.includes(b.type as BenefitType);
+    const res = await callAgent<Partial<Omit<FollowUp, "resultat">>>(
+      "suggest_followup",
+      {
+        benefitText: benefitSentence(b),
+        type: b.type,
+        gynnas: b.gynnas,
+        mal: b.mal,
+        qualRating: isQualitative ? (state.qualRatings[index] ?? null) : null,
+      },
+    );
+    setLoadingIndex(null);
+    if (!res.success) {
+      toast.error(res.error);
+      return;
+    }
+    const d = res.data ?? {};
+    setFollowUp(index, {
+      ...(d.effektmal ? { effektmal: d.effektmal } : {}),
+      ...(d.syfte ? { syfte: d.syfte } : {}),
+      ...(d.nar ? { nar: d.nar } : {}),
+      ...(d.hur ? { hur: d.hur } : {}),
+      ...(d.vad ? { vad: d.vad } : {}),
+      ...(d.ansvarig ? { ansvarig: d.ansvarig } : {}),
+      ...(d.atgard ? { atgard: d.atgard } : {}),
+    });
+    toast.success("AI-förslag ifyllt — justera texterna vid behov.");
+  };
 
   return (
     <div className="space-y-6">
@@ -38,6 +80,14 @@ export function Step6() {
               key={i}
               title={`Nytta ${i + 1}${b.type ? ` · ${b.type}` : ""}`}
               description={benefitSentence(b) || "(Nyttan saknar text)"}
+              action={
+                <AiButton
+                  onClick={() => void suggestFollowUp(i)}
+                  loading={loadingIndex === i}
+                >
+                  AI-förslag
+                </AiButton>
+              }
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Effektmål" className="md:col-span-2">
