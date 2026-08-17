@@ -57,23 +57,33 @@ export function Step5() {
 
   const empty = !hasAnyData(state);
 
+  // När omfördelningsnyttan ingår räknas frigjord tid som minskad kostnad vid
+  // förändring — visa samma justering i scenariografen.
+  const reallocAdjustment = state.reallocationInGraph
+    ? changeCalc.npvSum - (todayCalc.npvSum - net.totalNet)
+    : 0;
+  const changeLabel = state.reallocationInGraph
+    ? "Kostnad vid förändring (inkl. omfördelning)"
+    : "Kostnad vid förändring";
+
   const scenarioData = [
     {
       scenario: "Sämsta",
       idag: Math.round(todayCalc.worst),
-      forandring: Math.round(changeCalc.worst),
+      forandring: Math.round(changeCalc.worst - reallocAdjustment),
     },
     {
       scenario: "Sannolikt",
       idag: Math.round(todayCalc.npvSum),
-      forandring: Math.round(changeCalc.npvSum),
+      forandring: Math.round(changeCalc.npvSum - reallocAdjustment),
     },
     {
       scenario: "Bästa",
       idag: Math.round(todayCalc.best),
-      forandring: Math.round(changeCalc.best),
+      forandring: Math.round(changeCalc.best - reallocAdjustment),
     },
   ];
+
 
   const cumulativeData = net.perYear.map((r) => ({
     year: String(r.year),
