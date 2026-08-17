@@ -87,19 +87,35 @@ export interface Reallocation {
   valueFreed: number;
 }
 
+const normalizeRole = (role: string) => (role || "").trim().toLowerCase();
+
 export function computeReallocation(
   today: StaffToday[],
   change: StaffChange[],
 ): Reallocation {
   let hoursFreed = 0;
   let valueFreed = 0;
+  const usedToday = new Set<number>();
+
+  // Matcha i första hand på roll (samma yrkesroll idag och vid förändring),
+  // annars på radposition — annars jämförs raden mot noll.
   change.forEach((c, i) => {
-    const t = today[i];
-    if (!t) return;
     if (c.benefitType !== "Omfördelningsnytta ↺") return;
-    hoursFreed += (t.hours || 0) - (c.hours || 0);
+
+    let matchIndex = today.findIndex(
+      (t, idx) =>
+        !usedToday.has(idx) &&
+        normalizeRole(t.role).length > 0 &&
+        normalizeRole(t.role) === normalizeRole(c.role),
+    );
+    if (matchIndex === -1 && today[i] && !usedToday.has(i)) matchIndex = i;
+    if (matchIndex !== -1) usedToday.add(matchIndex);
+
+    const t = matchIndex === -1 ? null : today[matchIndex]!;
+    hoursFreed += (t?.hours || 0) - (c.hours || 0);
     valueFreed +=
-      staffAnnualCost(t.salary, t.hours) - staffAnnualCost(c.salary, c.hours);
+      (t ? staffAnnualCost(t.salary, t.hours) : 0) -
+      staffAnnualCost(c.salary, c.hours);
   });
   return { hoursFreed, valueFreed };
 }
