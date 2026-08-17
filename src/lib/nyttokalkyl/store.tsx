@@ -26,12 +26,14 @@ interface StoreValue {
   setQualRating: (index: number, current: number, expected: number) => void;
   setFollowUp: (index: number, patch: Partial<FollowUp>) => void;
   reset: () => void;
+  resetToken: number;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function NyttokalkylProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => initialState());
+  const [resetToken, setResetToken] = useState(0);
 
   const updateProject = useCallback(
     (patch: Partial<AppState["project"]>) =>
@@ -77,7 +79,10 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const reset = useCallback(() => setState(initialState()), []);
+  const reset = useCallback(() => {
+    setState(initialState());
+    setResetToken((t) => t + 1);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -88,8 +93,9 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
       setQualRating,
       setFollowUp,
       reset,
+      resetToken,
     }),
-    [state, updateProject, updateSheet, setQualRating, setFollowUp, reset],
+    [state, resetToken, updateProject, updateSheet, setQualRating, setFollowUp, reset],
   );
 
   return (
