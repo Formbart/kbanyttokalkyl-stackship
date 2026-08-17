@@ -307,7 +307,7 @@ export function Step1({
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <Field label="Typ av nytta">
                     <Select
-                      value={b.type || undefined}
+                      {...(b.type ? { value: b.type } : {})}
                       onValueChange={(v) =>
                         updateBenefit(i, { type: v as BenefitType })
                       }
@@ -326,7 +326,7 @@ export function Step1({
                   </Field>
                   <Field label="Gynnas av nyttan">
                     <Select
-                      value={b.gynnas || undefined}
+                      {...(b.gynnas ? { value: b.gynnas } : {})}
                       onValueChange={(v) =>
                         updateBenefit(i, { gynnas: v as Beneficiary })
                       }
