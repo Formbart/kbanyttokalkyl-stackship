@@ -18,7 +18,7 @@ export type AgentResult<T = unknown> =
   | { success: false; error: string };
 
 const DEFAULT_WEBHOOK_URL =
-  "https://kontakinte113355.app.n8n.cloud/webhook-test/nyttokalkyl-agent";
+  "https://kontakinte113355.app.n8n.cloud/webhook/nyttokalkyl-agent";
 
 const WEBHOOK_URL =
   (import.meta.env["VITE_N8N_WEBHOOK_URL"] as string | undefined) ||
