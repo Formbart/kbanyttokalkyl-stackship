@@ -201,10 +201,11 @@ export function Step5() {
               />
               <Bar
                 dataKey="forandring"
-                name="Kostnad vid förändring"
+                name={changeLabel}
                 fill="var(--color-change)"
                 radius={[6, 6, 0, 0]}
               />
+
             </BarChart>
           </ResponsiveContainer>
         </div>
