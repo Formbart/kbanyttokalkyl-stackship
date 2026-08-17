@@ -259,21 +259,28 @@ export function Step5() {
             onCheckedChange={(v) =>
               setState((s) => ({ ...s, reallocationInGraph: v }))
             }
+            disabled={realloc.valueFreed === 0}
           />
           <span className="text-sm">
             Inkludera omfördelningsnytta i grafen
             <span className="block text-xs text-muted-foreground">
               Räknar frigjord tid som minskad kostnad vid förändring.
+              {realloc.valueFreed !== 0 && (
+                <>
+                  {" "}
+                  Just nu {formatKr(realloc.valueFreed)}/år (
+                  {formatNumber(realloc.hoursFreed)} h).
+                </>
+              )}
             </span>
             {realloc.valueFreed === 0 && (
               <span className="mt-1 block text-xs text-negative">
-                Ingen frigjord tid att räkna med än — lägg till personalrader i
-                steg 2 och 3 med nyttotyp ”Omfördelningsnytta ↺” och lägre antal
-                timmar vid förändring.
+                {reallocBlockReason}
               </span>
             )}
           </span>
         </label>
+
 
       </SectionCard>
 
