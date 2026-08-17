@@ -23,10 +23,18 @@ const INTROS: Record<number, string> = {
 };
 
 function Inner() {
-  const { state } = useNyttokalkyl();
+  const { state, resetToken } = useNyttokalkyl();
   const [step, setStep] = useState(1);
   const [showStartChat, setShowStartChat] = useState(true);
   const [assumptions, setAssumptions] = useState<string | null>(null);
+
+  // Efter "rensa allt" ska användaren tillbaka till startsidan Nytt projekt.
+  useEffect(() => {
+    if (resetToken === 0) return;
+    setStep(1);
+    setShowStartChat(true);
+    setAssumptions(null);
+  }, [resetToken]);
 
   const startChatActive =
     showStartChat && state.project.name.trim() === "" && step === 1;
