@@ -1,24 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { NyttokalkylApp } from "@/components/nytto/NyttokalkylApp";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Nyttokalkyl – räkna på nyttan av förändringsprojekt" },
+      {
+        name: "description",
+        content:
+          "Nyttokalkyl för Kungsbacka kommun: räkna på finansiell nytta, omfördelning, kvalitativa nyttor och miljönytta i sex steg — med AI-stöd.",
+      },
+      { property: "og:title", content: "Nyttokalkyl – Kungsbacka kommun" },
+      {
+        property: "og:description",
+        content:
+          "Digitalt verktyg i sex steg för att beräkna nytta, kostnader, break-even och uppföljning av förändringsprojekt.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: NyttokalkylApp,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
