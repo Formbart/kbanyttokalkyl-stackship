@@ -57,23 +57,33 @@ export function Step5() {
 
   const empty = !hasAnyData(state);
 
+  // När omfördelningsnyttan ingår räknas frigjord tid som minskad kostnad vid
+  // förändring — visa samma justering i scenariografen.
+  const reallocAdjustment = state.reallocationInGraph
+    ? changeCalc.npvSum - (todayCalc.npvSum - net.totalNet)
+    : 0;
+  const changeLabel = state.reallocationInGraph
+    ? "Kostnad vid förändring (inkl. omfördelning)"
+    : "Kostnad vid förändring";
+
   const scenarioData = [
     {
       scenario: "Sämsta",
       idag: Math.round(todayCalc.worst),
-      forandring: Math.round(changeCalc.worst),
+      forandring: Math.round(changeCalc.worst - reallocAdjustment),
     },
     {
       scenario: "Sannolikt",
       idag: Math.round(todayCalc.npvSum),
-      forandring: Math.round(changeCalc.npvSum),
+      forandring: Math.round(changeCalc.npvSum - reallocAdjustment),
     },
     {
       scenario: "Bästa",
       idag: Math.round(todayCalc.best),
-      forandring: Math.round(changeCalc.best),
+      forandring: Math.round(changeCalc.best - reallocAdjustment),
     },
   ];
+
 
   const cumulativeData = net.perYear.map((r) => ({
     year: String(r.year),
@@ -191,10 +201,11 @@ export function Step5() {
               />
               <Bar
                 dataKey="forandring"
-                name="Kostnad vid förändring"
+                name={changeLabel}
                 fill="var(--color-change)"
                 radius={[6, 6, 0, 0]}
               />
+
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -243,8 +254,16 @@ export function Step5() {
             <span className="block text-xs text-muted-foreground">
               Räknar frigjord tid som minskad kostnad vid förändring.
             </span>
+            {realloc.valueFreed === 0 && (
+              <span className="mt-1 block text-xs text-negative">
+                Ingen frigjord tid att räkna med än — lägg till personalrader i
+                steg 2 och 3 med nyttotyp ”Omfördelningsnytta ↺” och lägre antal
+                timmar vid förändring.
+              </span>
+            )}
           </span>
         </label>
+
       </SectionCard>
 
       <SectionCard
