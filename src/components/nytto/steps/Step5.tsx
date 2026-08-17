@@ -67,6 +67,19 @@ export function Step5() {
 
   const empty = !hasAnyData(state);
 
+  // Förklara varför reglaget inte gör någon skillnad.
+  const changeStaff = state.costChange.staff;
+  const taggedRows = changeStaff.filter(
+    (r) => r.benefitType === "Omfördelningsnytta ↺",
+  );
+  const reallocBlockReason =
+    state.costToday.staff.length === 0 || changeStaff.length === 0
+      ? "Lägg till personalrader i steg 2 (idag) och steg 3 (vid förändring) för att kunna räkna på frigjord tid."
+      : taggedRows.length === 0
+        ? "Ingen personalrad i steg 3 är taggad ”Omfördelningsnytta ↺”. Ändra ”Typ av nytta” på raden för att räkna med frigjord tid."
+        : "Timmar och lön är lika i steg 2 och 3 — sätt färre timmar (eller lägre lön) på raden i steg 3 för att få frigjord tid.";
+
+
   // När omfördelningsnyttan ingår räknas frigjord tid som minskad kostnad vid
   // förändring — visa samma justering i scenariografen.
   const reallocAdjustment = state.reallocationInGraph
