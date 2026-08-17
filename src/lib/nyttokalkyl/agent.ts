@@ -10,9 +10,12 @@ export type AgentResult<T = unknown> =
   | { success: true; action: AgentAction; data: T }
   | { success: false; error: string };
 
-const WEBHOOK_URL = import.meta.env["VITE_N8N_WEBHOOK_URL"] as
-  | string
-  | undefined;
+const DEFAULT_WEBHOOK_URL =
+  "https://kontakinte113355.app.n8n.cloud/webhook-test/nyttokalkyl-agent";
+
+const WEBHOOK_URL =
+  (import.meta.env["VITE_N8N_WEBHOOK_URL"] as string | undefined) ||
+  DEFAULT_WEBHOOK_URL;
 
 export function agentConfigured(): boolean {
   return Boolean(WEBHOOK_URL);
