@@ -51,8 +51,8 @@ export function StartChat({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [factCheck, setFactCheck] = useState<{
-    factChecked?: boolean;
-    report?: string;
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
   }>({});
 
   const send = async () => {

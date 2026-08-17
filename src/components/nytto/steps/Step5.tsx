@@ -50,8 +50,8 @@ export function Step5() {
   const [loading, setLoading] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
   const [factCheck, setFactCheck] = useState<{
-    factChecked?: boolean;
-    report?: string;
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
   }>({});
 
   const todayCalc = computeCostSheet(state.costToday, state.project.startYear);

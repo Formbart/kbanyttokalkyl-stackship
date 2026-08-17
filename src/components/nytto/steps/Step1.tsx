@@ -52,8 +52,8 @@ export function Step1({
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [picked, setPicked] = useState<Record<number, boolean>>({});
   const [factCheck, setFactCheck] = useState<{
-    factChecked?: boolean;
-    report?: string;
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
   }>({});
 
   const updateBenefit = (index: number, patch: Partial<Benefit>) =>

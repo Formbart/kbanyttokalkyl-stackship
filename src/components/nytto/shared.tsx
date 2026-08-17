@@ -134,8 +134,8 @@ export function FactCheckBadge({
   factChecked,
   report,
 }: {
-  factChecked?: boolean;
-  report?: string;
+  factChecked?: boolean | undefined;
+  report?: string | undefined;
 }) {
   if (!factChecked) return null;
   const badge = (

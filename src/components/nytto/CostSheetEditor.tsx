@@ -53,8 +53,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     assumptions?: string;
   } | null>(null);
   const [factCheck, setFactCheck] = useState<{
-    factChecked?: boolean;
-    report?: string;
+    factChecked?: boolean | undefined;
+    report?: string | undefined;
   }>({});
 
   const setItems = (items: CostItem[]) =>

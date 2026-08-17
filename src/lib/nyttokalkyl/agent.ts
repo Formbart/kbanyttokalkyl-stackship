@@ -8,9 +8,9 @@ export type AgentAction =
   | "chat";
 
 export interface FactCheckMeta {
-  factChecked?: boolean;
-  factCheckReport?: string;
-  factCheckError?: string;
+  factChecked?: boolean | undefined;
+  factCheckReport?: string | undefined;
+  factCheckError?: string | undefined;
 }
 
 export type AgentResult<T = unknown> =
