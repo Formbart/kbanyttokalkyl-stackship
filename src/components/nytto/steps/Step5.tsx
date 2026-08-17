@@ -17,7 +17,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { AiButton, EmptyState, KpiCard, SectionCard } from "../shared";
+import {
+  AiButton,
+  EmptyState,
+  FactCheckBadge,
+  KpiCard,
+  SectionCard,
+} from "../shared";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   computeCostSheet,
@@ -126,6 +132,7 @@ export function Step5() {
       toast.error(res.error);
       return;
     }
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setReview(res.data ?? {});
   };
 
