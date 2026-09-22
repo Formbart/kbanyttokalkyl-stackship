@@ -12,6 +12,7 @@ import { CostSheetEditor } from "./CostSheetEditor";
 import { StartChat } from "./StartChat";
 import { ChatAssistant } from "./ChatAssistant";
 import { Toaster } from "@/components/ui/sonner";
+import { PrintView, type PrintStep } from "./PrintView";
 
 const INTROS: Record<number, string> = {
   1: "Beskriv projektet, jämförelsealternativen och de nyttor förändringen ska ge.",
@@ -27,6 +28,9 @@ function Inner() {
   const [step, setStep] = useState(1);
   const [showStartChat, setShowStartChat] = useState(true);
   const [assumptions, setAssumptions] = useState<string | null>(null);
+  const [printSelection, setPrintSelection] = useState<PrintStep[]>(
+    STEPS.map((item) => item.id),
+  );
 
   // Efter "rensa allt" ska användaren tillbaka till startsidan Nytt projekt.
   useEffect(() => {
@@ -43,7 +47,11 @@ function Inner() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
+      <div className="screen-app">
+      <AppHeader
+        printSelection={printSelection}
+        onPrintSelectionChange={setPrintSelection}
+      />
       {startChatActive ? (
         <StartChat
           onDone={(a) => {
@@ -105,6 +113,8 @@ function Inner() {
       )}
       {!startChatActive && <ChatAssistant />}
       <Toaster />
+      </div>
+      <PrintView selected={printSelection} />
     </div>
   );
 }
