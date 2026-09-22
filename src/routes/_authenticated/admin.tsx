@@ -147,6 +147,30 @@ function AdminPage() {
     }
   };
 
+  const onSendForUser = async (user: AppUserRow) => {
+    setBusy(true);
+    try {
+      const result = await resetAppUserPassword({ data: { userId: user.id } });
+      const credentials: NewCredentials = {
+        email: result.email,
+        password: result.password,
+        fullName: user.fullName ?? undefined,
+        event: "password_reset",
+      };
+      setCreds(credentials);
+      const response = await sendCredentials({ data: credentials });
+      if (!response.sent) {
+        toast.error("Utskicket misslyckades. De nya uppgifterna visas ovan för kopiering.");
+        return;
+      }
+      toast.success(`Nya kontouppgifter skickades till ${user.email}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kunde inte skicka kontouppgifterna.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onDelete = async (user: AppUserRow) => {
     try {
       await deleteAppUser({ data: { userId: user.id } });
@@ -270,7 +294,17 @@ function AdminPage() {
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={busy}
+                    onClick={() => void onSendForUser(user)}
+                  >
+                    <Mail className="size-4" />
+                    Skicka kontouppgifter
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
