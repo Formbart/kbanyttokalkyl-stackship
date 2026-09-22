@@ -143,6 +143,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
             hours: Number(r.hours) || FULL_TIME_HOURS,
+            count: Number(r.count) || 1,
             desc: r.desc ?? "",
           })),
         ]);
@@ -154,6 +155,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
             hours: Number(r.hours) || FULL_TIME_HOURS,
+            count: Number(r.count) || 1,
             benefitType: (r.benefitType ??
               "Omfördelningsnytta ↺") as StaffBenefitType,
             desc: r.desc ?? "",
@@ -347,7 +349,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       >
         <div className="space-y-4">
           {staff.map((row, i) => {
-            const annual = staffAnnualCost(row.salary, row.hours);
+            const count = row.count ?? 1;
+            const annual = staffAnnualCost(row.salary, row.hours, count);
             const employmentRate = row.hours / FULL_TIME_HOURS;
             const monthlySalaryAtRate = row.salary * employmentRate;
             return (
@@ -366,7 +369,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                   <Field label="Befattning">
                     <Select
                       value={row.role}
@@ -392,9 +395,22 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field label="Antal personer" hint="Hur många som har rollen">
+                    <Input
+                      type="number"
+                      className="num"
+                      min={0}
+                      value={count}
+                      onChange={(e) =>
+                        updateStaff(i, {
+                          count: Math.max(0, Number(e.target.value) || 0),
+                        })
+                      }
+                    />
+                  </Field>
                   <Field
                     label="Månadslön exkl. PO"
-                    hint={`Heltidslön: ${formatKr(row.salary || 0)}/mån`}
+                    hint={`Heltidslön: ${formatKr(row.salary || 0)}/mån per person`}
                   >
                     <Input
                       type="number"
@@ -461,7 +477,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                   </Field>
 
                   {scenario === "today" ? (
-                    <Field label="Beräknad kostnad/år">
+                    <Field
+                      label="Beräknad kostnad/år"
+                      hint={count > 1 ? `Totalt för ${count} personer` : ""}
+                    >
                       <div className="num flex h-9 items-center rounded-md bg-brand-soft px-3 text-sm font-semibold text-brand-dark">
                         {formatKr(annual)}
                       </div>
