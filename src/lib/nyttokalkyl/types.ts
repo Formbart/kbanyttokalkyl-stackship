@@ -159,14 +159,19 @@ export function emptyCostItem(startYear: number): CostItem {
 }
 
 export function emptyStaffToday(): StaffToday {
-  return { role: "Övrig personalresurs", salary: 0, hours: 0, desc: "" };
+  return {
+    role: "Övrig personalresurs",
+    salary: 0,
+    hours: FULL_TIME_HOURS,
+    desc: "",
+  };
 }
 
 export function emptyStaffChange(): StaffChange {
   return {
     role: "Övrig personalresurs",
     salary: 0,
-    hours: 0,
+    hours: FULL_TIME_HOURS,
     benefitType: "Omfördelningsnytta ↺",
     desc: "",
   };
