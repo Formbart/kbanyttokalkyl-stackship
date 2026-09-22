@@ -38,6 +38,8 @@ export interface StaffToday {
   role: string;
   salary: number;
   hours: number;
+  /** Antal personer med denna roll (standard 1). */
+  count: number;
   desc: string;
 }
 
@@ -163,6 +165,7 @@ export function emptyStaffToday(): StaffToday {
     role: "Övrig personalresurs",
     salary: 0,
     hours: FULL_TIME_HOURS,
+    count: 1,
     desc: "",
   };
 }
@@ -172,6 +175,7 @@ export function emptyStaffChange(): StaffChange {
     role: "Övrig personalresurs",
     salary: 0,
     hours: FULL_TIME_HOURS,
+    count: 1,
     benefitType: "Omfördelningsnytta ↺",
     desc: "",
   };

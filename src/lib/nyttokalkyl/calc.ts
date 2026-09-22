@@ -15,11 +15,15 @@ export function years(startYear: number): number[] {
   return Array.from({ length: N_YEARS }, (_, i) => startYear + i);
 }
 
-export function staffAnnualCost(salary: number, hours: number): number {
+export function staffAnnualCost(
+  salary: number,
+  hours: number,
+  count = 1,
+): number {
   const share = (hours || 0) / FULL_TIME_HOURS;
   const annual = (salary || 0) * 12;
   const annualPO = annual * PO_FACTOR;
-  return share * annualPO;
+  return share * annualPO * (count || 0);
 }
 
 export interface YearRow {
@@ -44,7 +48,7 @@ export function computeCostSheet(
   startYear: number,
 ): SheetCalc {
   const staffBase = sheet.staff.reduce(
-    (sum, s) => sum + staffAnnualCost(s.salary, s.hours),
+    (sum, s) => sum + staffAnnualCost(s.salary, s.hours, s.count ?? 1),
     0,
   );
   const perYear: YearRow[] = years(startYear).map((year, i) => {
@@ -112,10 +116,11 @@ export function computeReallocation(
     if (matchIndex !== -1) usedToday.add(matchIndex);
 
     const t = matchIndex === -1 ? null : today[matchIndex]!;
-    hoursFreed += (t?.hours || 0) - (c.hours || 0);
+    hoursFreed +=
+      (t?.hours || 0) * (t?.count ?? 1) - (c.hours || 0) * (c.count ?? 1);
     valueFreed +=
-      (t ? staffAnnualCost(t.salary, t.hours) : 0) -
-      staffAnnualCost(c.salary, c.hours);
+      (t ? staffAnnualCost(t.salary, t.hours, t.count ?? 1) : 0) -
+      staffAnnualCost(c.salary, c.hours, c.count ?? 1);
   });
   return { hoursFreed, valueFreed };
 }
