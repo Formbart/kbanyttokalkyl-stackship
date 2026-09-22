@@ -29,10 +29,10 @@ import {
   LogOut,
   Printer,
   Save,
+  Settings,
   Shield,
   Trash2,
   Upload,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
@@ -411,10 +411,10 @@ export function AppHeader({
               </Link>
             </Button>
           )}
-          <Button asChild variant="ghost" size="sm" className="gap-2">
+          <Button asChild variant="ghost" size="sm" className="gap-2" aria-label="Mitt konto och lösenord">
             <Link to="/konto">
-              <User className="size-4" />
-              <span className="hidden lg:inline">{user?.email ?? "Mitt konto"}</span>
+              <Settings className="size-4" />
+              <span className="hidden lg:inline">Mitt konto</span>
             </Link>
           </Button>
           <Button
