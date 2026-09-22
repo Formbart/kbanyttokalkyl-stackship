@@ -362,7 +362,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                   <Field label="Befattning">
                     <Select
                       value={row.role}
@@ -398,6 +398,35 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       }
                     />
                   </Field>
+                  <Field
+                    label="Tjänstgöringsgrad %"
+                    hint={`100 % = 1760 h/år${
+                      row.hours
+                        ? ` • ${formatKr(
+                            (row.salary || 0) * (row.hours / 1760),
+                          )}/mån`
+                        : ""
+                    }`}
+                  >
+                    <Input
+                      type="number"
+                      className="num"
+                      min={0}
+                      max={100}
+                      value={
+                        row.hours
+                          ? Math.round((row.hours / 1760) * 1000) / 10
+                          : 0
+                      }
+                      onChange={(e) => {
+                        const pct = Math.max(
+                          0,
+                          Math.min(100, Number(e.target.value) || 0),
+                        );
+                        updateStaff(i, { hours: Math.round(1760 * (pct / 100)) });
+                      }}
+                    />
+                  </Field>
                   <Field label="Arbetstimmar/år" hint="Max 1760 h = heltid">
                     <Input
                       type="number"
@@ -413,6 +442,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       }
                     />
                   </Field>
+
                   {scenario === "today" ? (
                     <Field label="Beräknad kostnad/år">
                       <div className="num flex h-9 items-center rounded-md bg-brand-soft px-3 text-sm font-semibold text-brand-dark">
