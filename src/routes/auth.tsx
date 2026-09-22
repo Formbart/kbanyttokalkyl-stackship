@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import loginBg from "@/assets/login-bg.jpg.asset.json";
+import loginBg from "@/assets/hermerin-login-bg.jpg.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -64,8 +64,7 @@ function AuthPage() {
         aria-hidden
         className="absolute inset-0 size-full object-cover"
       />
-      <div className="absolute inset-0 bg-background/75 backdrop-blur-[2px]" />
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card/95 p-7 shadow-xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl bg-brand font-display text-sm font-bold text-primary-foreground">
             KB
