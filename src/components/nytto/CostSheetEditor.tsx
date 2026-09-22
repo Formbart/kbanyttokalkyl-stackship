@@ -142,7 +142,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             ...emptyStaffToday(),
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
-            hours: Number(r.hours) || 0,
+            hours: Number(r.hours) || FULL_TIME_HOURS,
             desc: r.desc ?? "",
           })),
         ]);
@@ -153,7 +153,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             ...emptyStaffChange(),
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
-            hours: Number(r.hours) || 0,
+            hours: Number(r.hours) || FULL_TIME_HOURS,
             benefitType: (r.benefitType ??
               "Omfördelningsnytta ↺") as StaffBenefitType,
             desc: r.desc ?? "",
