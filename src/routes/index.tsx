@@ -1,24 +1,41 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { NyttokalkylApp } from "@/components/nytto/NyttokalkylApp";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
-      { title: "Nyttokalkyl – räkna på nyttan av förändringsprojekt" },
+      { title: "Nyttokalkyl – Kungsbacka kommun" },
       {
         name: "description",
         content:
-          "Nyttokalkyl för Kungsbacka kommun: räkna på finansiell nytta, omfördelning, kvalitativa nyttor och miljönytta i sex steg — med AI-stöd.",
+          "Kungsbacka kommuns verktyg för nyttokalkyler: beräkna nytta, kostnader och uppföljning av förändringsprojekt.",
       },
       { property: "og:title", content: "Nyttokalkyl – Kungsbacka kommun" },
       {
         property: "og:description",
-        content:
-          "Digitalt verktyg i sex steg för att beräkna nytta, kostnader, break-even och uppföljning av förändringsprojekt.",
+        content: "Logga in för att arbeta med dina nyttokalkyler.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: NyttokalkylApp,
+  component: Landing,
 });
+
+function Landing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      void navigate({ to: data.user ? "/kalkyl" : "/auth", replace: true });
+    });
+  }, [navigate]);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <p className="text-sm text-muted-foreground">Laddar…</p>
+    </div>
+  );
+}

@@ -1,5 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +22,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Download, HelpCircle, Printer, Trash2, Upload } from "lucide-react";
+import {
+  Download,
+  FolderOpen,
+  HelpCircle,
+  LogOut,
+  Printer,
+  Save,
+  Shield,
+  Trash2,
+  Upload,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { initialState, type AppState } from "@/lib/nyttokalkyl/types";
@@ -27,6 +41,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { STEPS } from "./StepNav";
 import type { PrintStep } from "./PrintView";
 import { exportNyttokalkylToExcel } from "@/lib/nyttokalkyl/exportExcel";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/hooks/useSession";
+import {
+  deleteCalculation,
+  listSavedCalculations,
+  loadCalculation,
+  saveCalculation,
+  type SavedCalculation,
+} from "@/lib/nyttokalkyl/saved";
+
 
 const GLOSSARY: { term: string; def: string }[] = [
   {
@@ -79,9 +103,76 @@ export function AppHeader({
   onPrintSelectionChange: (steps: PrintStep[]) => void;
 }) {
   const { state, setState, reset } = useNyttokalkyl();
+  const navigate = useNavigate();
+  const { user, isAdmin } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [saved, setSaved] = useState<SavedCalculation[]>([]);
+  const [title, setTitle] = useState("");
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [savingBusy, setSavingBusy] = useState(false);
+
+  useEffect(() => {
+    if (!savedOpen) return;
+    void listSavedCalculations()
+      .then(setSaved)
+      .catch(() => toast.error("Kunde inte hämta dina sparade kalkyler."));
+  }, [savedOpen]);
+
+  useEffect(() => {
+    if (!title && state.project.name) setTitle(state.project.name);
+  }, [state.project.name, title]);
+
+  const onSave = async () => {
+    const name = title.trim() || state.project.name.trim();
+    if (!name) {
+      toast.error("Ge kalkylen ett namn innan du sparar.");
+      return;
+    }
+    setSavingBusy(true);
+    try {
+      const id = await saveCalculation(state, name, currentId);
+      setCurrentId(id);
+      setSaved(await listSavedCalculations());
+      toast.success("Kalkylen är sparad.");
+    } catch {
+      toast.error("Kalkylen kunde inte sparas.");
+    } finally {
+      setSavingBusy(false);
+    }
+  };
+
+  const onLoad = async (id: string) => {
+    try {
+      const result = await loadCalculation(id);
+      setState(result.state);
+      setCurrentId(id);
+      setTitle(result.title);
+      setSavedOpen(false);
+      toast.success(`"${result.title}" är öppnad.`);
+    } catch {
+      toast.error("Kalkylen kunde inte öppnas.");
+    }
+  };
+
+  const onDeleteSaved = async (id: string) => {
+    try {
+      await deleteCalculation(id);
+      if (currentId === id) setCurrentId(null);
+      setSaved(await listSavedCalculations());
+      toast.success("Kalkylen är raderad.");
+    } catch {
+      toast.error("Kalkylen kunde inte raderas.");
+    }
+  };
+
+  const onSignOut = async () => {
+    await supabase.auth.signOut();
+    void navigate({ to: "/auth", replace: true });
+  };
+
 
   const onExport = async () => {
     try {
@@ -237,7 +328,101 @@ export function AppHeader({
               </div>
             </DialogContent>
           </Dialog>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            disabled={savingBusy}
+            onClick={() => void onSave()}
+          >
+            <Save className="size-4" />
+            <span className="hidden sm:inline">Spara</span>
+          </Button>
+          <Dialog open={savedOpen} onOpenChange={setSavedOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <FolderOpen className="size-4" />
+                <span className="hidden sm:inline">Mina kalkyler</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Mina kalkyler</DialogTitle>
+                <DialogDescription>
+                  Spara den pågående kalkylen eller återuppta en tidigare.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label htmlFor="calcTitle">Namn på kalkylen</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="calcTitle"
+                    value={title}
+                    placeholder="T.ex. Digital signering hemtjänst"
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                  <Button disabled={savingBusy} onClick={() => void onSave()}>
+                    Spara
+                  </Button>
+                </div>
+              </div>
+              <div className="divide-y divide-border">
+                {saved.length === 0 && (
+                  <p className="py-3 text-sm text-muted-foreground">
+                    Du har inga sparade kalkyler ännu.
+                  </p>
+                )}
+                {saved.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Uppdaterad {new Date(item.updated_at).toLocaleString("sv-SE")}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" onClick={() => void onLoad(item.id)}>
+                        Öppna
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-negative"
+                        onClick={() => void onDeleteSaved(item.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+          {isAdmin && (
+            <Button asChild variant="ghost" size="sm" className="gap-2">
+              <Link to="/admin">
+                <Shield className="size-4" />
+                <span className="hidden lg:inline">Användare</span>
+              </Link>
+            </Button>
+          )}
+          <Button asChild variant="ghost" size="sm" className="gap-2">
+            <Link to="/konto">
+              <User className="size-4" />
+              <span className="hidden lg:inline">{user?.email ?? "Mitt konto"}</span>
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={() => void onSignOut()}
+          >
+            <LogOut className="size-4" />
+            <span className="hidden lg:inline">Logga ut</span>
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => void onExport()}>
+
             <Download className="size-4" />
             <span className="hidden sm:inline">Exportera Excel</span>
           </Button>
