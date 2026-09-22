@@ -287,7 +287,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       min={0}
                       max={100}
                       className="num w-20"
-                      value={it.margin}
+                      value={it.margin || ""}
+                      placeholder="0"
                       onChange={(e) =>
                         updateItem(i, {
                           margin: Math.max(
@@ -444,8 +445,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       value={
                         row.hours
                           ? Math.round((row.hours / FULL_TIME_HOURS) * 1000) / 10
-                          : 0
+                          : ""
                       }
+                      placeholder="100"
                       onChange={(e) => {
                         const pct = Math.max(
                           0,
@@ -464,7 +466,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Input
                       type="number"
                       className="num"
-                      value={row.hours}
+                      value={row.hours || ""}
                       onChange={(e) =>
                         updateStaff(i, {
                           hours: Math.max(
@@ -551,7 +553,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             <Input
               type="number"
               className="num"
-              value={sheet.growth}
+              value={sheet.growth || ""}
+              placeholder="0"
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
             />
           </Field>
