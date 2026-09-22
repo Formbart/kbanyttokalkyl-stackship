@@ -362,7 +362,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                   <Field label="Befattning">
                     <Select
                       value={row.role}
