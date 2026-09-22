@@ -50,6 +50,7 @@ import {
   saveCalculation,
   type SavedCalculation,
 } from "@/lib/nyttokalkyl/saved";
+import kungsbackaVapen from "@/assets/kungsbacka-kommunvapen.png.asset.json";
 
 
 const GLOSSARY: { term: string; def: string }[] = [
@@ -219,21 +220,25 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand font-display text-sm font-bold text-primary-foreground">
-          KB
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-display text-lg font-semibold leading-tight text-foreground">
-            Nyttokalkyl
-          </h1>
-          <p className="truncate text-xs text-muted-foreground">
-            Kungsbacka kommun
-            {state.project.name ? ` · ${state.project.name}` : ""}
-          </p>
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src={kungsbackaVapen.url}
+            alt="Kungsbacka kommuns vapen"
+            className="h-12 w-auto shrink-0"
+          />
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-lg font-semibold leading-tight text-foreground">
+              Nyttokalkyl
+            </h1>
+            <p className="truncate text-xs text-muted-foreground">
+              Kungsbacka kommun
+              {state.project.name ? ` · ${state.project.name}` : ""}
+            </p>
+          </div>
         </div>
 
-        <div className="no-print flex items-center gap-2">
+        <div className="no-print mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <Dialog open={glossaryOpen} onOpenChange={setGlossaryOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Glosbok och hjälp">
