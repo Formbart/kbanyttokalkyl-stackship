@@ -124,6 +124,7 @@ export function StartChat({
           ...r,
           salary: Number(r.salary) || 0,
           hours: Number(r.hours) || 0,
+          count: Number(r.count) || 1,
         })),
       },
       costChange: {
@@ -138,6 +139,7 @@ export function StartChat({
           ...r,
           salary: Number(r.salary) || 0,
           hours: Number(r.hours) || 0,
+          count: Number(r.count) || 1,
         })),
       },
       qualRatings,
