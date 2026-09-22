@@ -26,6 +26,7 @@ import { initialState, type AppState } from "@/lib/nyttokalkyl/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { STEPS } from "./StepNav";
 import type { PrintStep } from "./PrintView";
+import { exportNyttokalkylToExcel } from "@/lib/nyttokalkyl/exportExcel";
 
 const GLOSSARY: { term: string; def: string }[] = [
   {
@@ -82,17 +83,13 @@ export function AppHeader({
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
 
-  const onExport = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `nyttokalkyl-${state.project.name || "utkast"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Kalkylen exporterades som JSON.");
+  const onExport = async () => {
+    try {
+      await exportNyttokalkylToExcel(state);
+      toast.success("Kalkylen exporterades till Excel med sex flikar.");
+    } catch {
+      toast.error("Excel-filen kunde inte skapas. Försök igen.");
+    }
   };
 
   const onImportFile = async (file: File) => {
@@ -238,9 +235,9 @@ export function AppHeader({
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" size="sm" className="gap-2" onClick={onExport}>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => void onExport()}>
             <Download className="size-4" />
-            <span className="hidden sm:inline">Exportera</span>
+            <span className="hidden sm:inline">Exportera Excel</span>
           </Button>
           <Button
             variant="outline"
