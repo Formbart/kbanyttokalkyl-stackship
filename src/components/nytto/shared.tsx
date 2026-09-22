@@ -22,7 +22,7 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <section className={cn("surface-card p-5 sm:p-6", className)}>
+    <section className={cn("surface-card print-keep p-5 sm:p-6", className)}>
       {(title || action) && (
         <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -62,7 +62,7 @@ export function KpiCard({
     change: "text-change",
   }[tone];
   return (
-    <div className="surface-card p-4">
+    <div className="surface-card print-keep p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>

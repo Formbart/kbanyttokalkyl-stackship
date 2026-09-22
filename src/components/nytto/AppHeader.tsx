@@ -23,6 +23,9 @@ import { Download, HelpCircle, Printer, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { initialState, type AppState } from "@/lib/nyttokalkyl/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { STEPS } from "./StepNav";
+import type { PrintStep } from "./PrintView";
 
 const GLOSSARY: { term: string; def: string }[] = [
   {
@@ -67,10 +70,17 @@ const GLOSSARY: { term: string; def: string }[] = [
   },
 ];
 
-export function AppHeader() {
+export function AppHeader({
+  printSelection,
+  onPrintSelectionChange,
+}: {
+  printSelection: PrintStep[];
+  onPrintSelectionChange: (steps: PrintStep[]) => void;
+}) {
   const { state, setState, reset } = useNyttokalkyl();
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const onExport = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], {
@@ -101,6 +111,20 @@ export function AppHeader() {
     } catch {
       toast.error("Kunde inte läsa filen. Är det en giltig JSON-export?");
     }
+  };
+
+  const togglePrintStep = (step: PrintStep, checked: boolean) => {
+    onPrintSelectionChange(
+      checked
+        ? [...new Set([...printSelection, step])].sort((a, b) => a - b)
+        : printSelection.filter((item) => item !== step),
+    );
+  };
+
+  const onPrint = () => {
+    if (printSelection.length === 0) return;
+    setPrintOpen(false);
+    window.setTimeout(() => window.print(), 150);
   };
 
   return (
@@ -146,15 +170,74 @@ export function AppHeader() {
             </DialogContent>
           </Dialog>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => window.print()}
-          >
-            <Printer className="size-4" />
-            <span className="hidden sm:inline">Skriv ut</span>
-          </Button>
+          <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Printer className="size-4" />
+                <span className="hidden sm:inline">Skriv ut</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Välj delar att skriva ut</DialogTitle>
+                <DialogDescription>
+                  De valda delarna samlas i ett dokument med anpassade sidbrytningar.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex gap-2 border-b border-border pb-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPrintSelectionChange(STEPS.map((step) => step.id))}
+                >
+                  Välj alla
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onPrintSelectionChange([])}
+                >
+                  Rensa val
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {STEPS.map((step) => (
+                  <label
+                    key={step.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-3 hover:bg-muted"
+                  >
+                    <Checkbox
+                      checked={printSelection.includes(step.id)}
+                      onCheckedChange={(checked) =>
+                        togglePrintStep(step.id, Boolean(checked))
+                      }
+                    />
+                    <span className="text-sm font-medium">
+                      {step.id}. {step.title}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <p className="text-xs text-muted-foreground">
+                  {printSelection.length === 0
+                    ? "Välj minst en del."
+                    : `${printSelection.length} av 6 delar valda`}
+                </p>
+                <Button
+                  type="button"
+                  className="gap-2"
+                  disabled={printSelection.length === 0}
+                  onClick={onPrint}
+                >
+                  <Printer className="size-4" />
+                  Öppna utskrift
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="sm" className="gap-2" onClick={onExport}>
             <Download className="size-4" />
             <span className="hidden sm:inline">Exportera</span>

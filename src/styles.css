@@ -195,14 +195,155 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 16mm;
+  }
+
   .no-print {
     display: none !important;
   }
+
   body {
-    background: white;
+    background: white !important;
+    color: black !important;
+    font-size: 10pt;
   }
+
+  .screen-app {
+    display: none !important;
+  }
+
+  .print-document {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    visibility: visible !important;
+  }
+
+  .print-cover {
+    margin-bottom: 10mm;
+    border-bottom: 2px solid var(--color-brand);
+    padding-bottom: 6mm;
+    break-after: avoid-page;
+  }
+
+  .print-cover h1 {
+    margin: 1mm 0;
+    font-size: 24pt;
+    line-height: 1.15;
+  }
+
+  .print-cover > p {
+    margin: 0;
+  }
+
+  .print-municipality {
+    color: var(--color-brand-dark);
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-date {
+    margin-top: 3mm !important;
+    color: var(--color-muted-foreground);
+    font-size: 8pt;
+  }
+
+  .print-step {
+    break-before: page;
+  }
+
+  .print-step:first-of-type {
+    break-before: auto;
+  }
+
+  .print-step-heading {
+    margin-bottom: 6mm;
+    break-after: avoid-page;
+  }
+
+  .print-step-heading p,
+  .print-step-heading span {
+    margin: 0;
+    color: var(--color-muted-foreground);
+    font-size: 8.5pt;
+  }
+
+  .print-step-heading p {
+    color: var(--color-brand-dark);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .print-step-heading h2 {
+    margin: 1mm 0;
+    font-size: 18pt;
+    line-height: 1.2;
+  }
+
+  .print-document .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 5mm;
+  }
+
+  .print-document .surface-card {
+    border: 1px solid var(--color-border) !important;
+    box-shadow: none !important;
+  }
+
+  .print-keep,
+  .print-document table,
+  .print-document tr,
+  .print-document li,
+  .print-document p,
+  .print-document label,
+  .print-document [class*="rounded-xl"] {
+    break-inside: avoid-page;
+  }
+
+  .print-document input,
+  .print-document textarea,
+  .print-document button[role="combobox"] {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: black !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .print-document textarea {
+    field-sizing: content;
+    min-height: 0 !important;
+    resize: none;
+  }
+
+  .print-document .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .print-document table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 8pt;
+  }
+
+  .print-document svg {
+    max-width: 100%;
+  }
+
   .print-full {
     width: 100% !important;
     max-width: none !important;
   }
+}
+
+.print-document {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  width: 1000px;
+  visibility: hidden;
 }
