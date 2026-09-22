@@ -99,7 +99,6 @@ function finish(ws: Worksheet, widths: number[]) {
       cell.alignment = { vertical: "top", wrapText: true, ...(cell.alignment ?? {}) };
     });
   });
-  ws.autoFilter = undefined;
   ws.pageSetup = {
     orientation: "landscape",
     fitToPage: true,
