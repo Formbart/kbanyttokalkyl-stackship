@@ -24,6 +24,7 @@ import {
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   COST_TYPES,
+  FULL_TIME_HOURS,
   ROLE_NAMES,
   ROLE_SALARIES,
   STAFF_BENEFIT_TYPES,
@@ -346,6 +347,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         <div className="space-y-4">
           {staff.map((row, i) => {
             const annual = staffAnnualCost(row.salary, row.hours);
+            const employmentRate = row.hours / FULL_TIME_HOURS;
+            const monthlySalaryAtRate = row.salary * employmentRate;
             return (
               <div key={i} className="rounded-xl border border-border p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -388,25 +391,28 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Månadslön exkl. PO">
+                  <Field
+                    label="Månadslön exkl. PO"
+                    hint={`Heltidslön: ${formatKr(row.salary || 0)}/mån`}
+                  >
                     <Input
                       type="number"
                       className="num"
-                      value={row.salary}
-                      onChange={(e) =>
-                        updateStaff(i, { salary: Number(e.target.value) || 0 })
-                      }
+                      value={Math.round(monthlySalaryAtRate)}
+                      onChange={(e) => {
+                        const monthlySalary = Number(e.target.value) || 0;
+                        updateStaff(i, {
+                          salary:
+                            employmentRate > 0
+                              ? monthlySalary / employmentRate
+                              : monthlySalary,
+                        });
+                      }}
                     />
                   </Field>
                   <Field
                     label="Tjänstgöringsgrad %"
-                    hint={`100 % = 1760 h/år${
-                      row.hours
-                        ? ` • ${formatKr(
-                            (row.salary || 0) * (row.hours / 1760),
-                          )}/mån`
-                        : ""
-                    }`}
+                    hint={`100 % = ${FULL_TIME_HOURS} h/år`}
                   >
                     <Input
                       type="number"
@@ -415,7 +421,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       max={100}
                       value={
                         row.hours
-                          ? Math.round((row.hours / 1760) * 1000) / 10
+                          ? Math.round((row.hours / FULL_TIME_HOURS) * 1000) / 10
                           : 0
                       }
                       onChange={(e) => {
@@ -423,11 +429,16 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                           0,
                           Math.min(100, Number(e.target.value) || 0),
                         );
-                        updateStaff(i, { hours: Math.round(1760 * (pct / 100)) });
+                        updateStaff(i, {
+                          hours: Math.round(FULL_TIME_HOURS * (pct / 100)),
+                        });
                       }}
                     />
                   </Field>
-                  <Field label="Arbetstimmar/år" hint="Max 1760 h = heltid">
+                  <Field
+                    label="Arbetstimmar/år"
+                    hint={`Max ${FULL_TIME_HOURS} h = heltid`}
+                  >
                     <Input
                       type="number"
                       className="num"
@@ -436,7 +447,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                         updateStaff(i, {
                           hours: Math.max(
                             0,
-                            Math.min(1760, Number(e.target.value) || 0),
+                            Math.min(FULL_TIME_HOURS, Number(e.target.value) || 0),
                           ),
                         })
                       }
