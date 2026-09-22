@@ -49,6 +49,7 @@ interface NewCredentials {
   email: string;
   password: string;
   fullName?: string | undefined;
+  event: "account_created" | "password_reset";
 }
 
 function AdminPage() {
@@ -102,7 +103,12 @@ function AdminPage() {
     setBusy(true);
     try {
       const result = await createAppUser({ data: { email, fullName } });
-      setCreds({ email: result.email, password: result.password, fullName });
+      setCreds({
+        email: result.email,
+        password: result.password,
+        fullName,
+        event: "account_created",
+      });
       setEmail("");
       setFullName("");
       await refresh();
@@ -133,6 +139,7 @@ function AdminPage() {
         email: result.email,
         password: result.password,
         fullName: user.fullName ?? undefined,
+        event: "password_reset",
       });
       toast.success("Ett nytt lösenord är genererat.");
     } catch (error) {
@@ -228,7 +235,7 @@ function AdminPage() {
                 </Button>
                 <Button size="sm" className="gap-2" onClick={() => void onSend(creds)}>
                   <Mail className="size-4" />
-                  Skicka till användaren
+                  Skicka kontouppgifter
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setCreds(null)}>
                   Stäng
