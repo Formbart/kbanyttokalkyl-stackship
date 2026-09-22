@@ -347,3 +347,75 @@
   width: 1000px;
   visibility: hidden;
 }
+
+/* Enkätens egna utskriftsläge — visar bara den aktuella enkäten. */
+.survey-print-doc {
+  display: none;
+}
+
+@media print {
+  body.is-printing-survey .print-document {
+    display: none !important;
+  }
+
+  body.is-printing-survey .survey-print-doc {
+    display: block !important;
+    visibility: visible !important;
+    color: black;
+  }
+
+  .survey-print-doc h1 {
+    margin: 0 0 3mm;
+    font-size: 20pt;
+    line-height: 1.2;
+  }
+
+  .survey-print-doc .survey-print-target {
+    margin: 0 0 2mm;
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .survey-print-doc .survey-print-intro {
+    margin: 0 0 8mm;
+    font-size: 10pt;
+  }
+
+  .survey-print-doc .survey-print-questions {
+    margin: 0;
+    padding-left: 6mm;
+  }
+
+  .survey-print-doc .survey-print-questions > li {
+    margin-bottom: 7mm;
+    break-inside: avoid-page;
+  }
+
+  .survey-print-doc .survey-print-question {
+    margin: 0 0 2mm;
+    font-size: 11pt;
+    font-weight: 600;
+  }
+
+  .survey-print-doc .survey-print-options {
+    margin: 0;
+    padding-left: 5mm;
+    font-size: 10pt;
+  }
+
+  .survey-print-doc .survey-print-options li {
+    margin-bottom: 1.5mm;
+    list-style: none;
+  }
+
+  .survey-print-doc .survey-print-options li::before {
+    content: "☐ ";
+  }
+
+  .survey-print-doc .survey-print-lines span {
+    display: block;
+    height: 7mm;
+    border-bottom: 1px solid #999;
+  }
+}

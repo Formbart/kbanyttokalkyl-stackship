@@ -103,6 +103,8 @@ export function AppHeader({
         qualRatings: parsed.qualRatings ?? {},
         reallocationInGraph: parsed.reallocationInGraph ?? false,
         followUp: parsed.followUp ?? {},
+        surveys: parsed.surveys ?? {},
+
       });
       toast.success("Kalkylen importerades.");
     } catch {

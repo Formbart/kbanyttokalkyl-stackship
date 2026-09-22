@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { AiButton, EmptyState, Field, SectionCard } from "../shared";
+import { SurveyTab } from "../SurveyTab";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   QUALITATIVE_TYPES,
@@ -12,6 +14,7 @@ import {
   type BenefitType,
   type FollowUp,
 } from "@/lib/nyttokalkyl/types";
+
 
 export function Step6() {
   const { state, setFollowUp } = useNyttokalkyl();
@@ -89,7 +92,21 @@ export function Step6() {
                 </AiButton>
               }
             >
+              <Tabs defaultValue="plan">
+                <TabsList className="no-print mb-4">
+                  <TabsTrigger value="plan">Uppföljningsplan</TabsTrigger>
+                  <TabsTrigger value="survey" className="gap-1.5">
+                    Enkätförslag
+                    {state.surveys[i] ? (
+                      <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-primary-foreground">
+                        {state.surveys[i]!.questions.length}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="plan">
               <div className="grid gap-4 md:grid-cols-2">
+
                 <Field label="Effektmål" className="md:col-span-2">
                   <Textarea
                     rows={2}
@@ -146,7 +163,13 @@ export function Step6() {
                   />
                 </Field>
               </div>
+                </TabsContent>
+                <TabsContent value="survey">
+                  <SurveyTab index={i} benefit={b} />
+                </TabsContent>
+              </Tabs>
             </SectionCard>
+
           );
         })
       )}
