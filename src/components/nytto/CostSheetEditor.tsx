@@ -259,7 +259,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Input
                       type="number"
                       className="num w-32"
-                      value={it.costPerYear}
+                      value={it.costPerYear || ""}
+                      placeholder="Ange belopp"
                       onChange={(e) =>
                         updateItem(i, { costPerYear: Number(e.target.value) || 0 })
                       }
@@ -398,7 +399,12 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Input
                       type="number"
                       className="num"
-                      value={Math.round(monthlySalaryAtRate)}
+                      value={
+                        monthlySalaryAtRate
+                          ? Math.round(monthlySalaryAtRate)
+                          : ""
+                      }
+                      placeholder="Ange månadslön"
                       onChange={(e) => {
                         const monthlySalary = Number(e.target.value) || 0;
                         updateStaff(i, {
