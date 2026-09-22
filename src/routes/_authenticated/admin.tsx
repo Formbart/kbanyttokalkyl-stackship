@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 interface NewCredentials {
   email: string;
   password: string;
-  fullName?: string;
+  fullName?: string | undefined;
 }
 
 function AdminPage() {
