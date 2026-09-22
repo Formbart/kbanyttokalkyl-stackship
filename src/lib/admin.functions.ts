@@ -112,7 +112,19 @@ export const resetAppUserPassword = createServerFn({ method: "POST" })
 /** Skickar inloggningsuppgifterna vidare till n8n, som mejlar användaren. */
 export const sendCredentials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { email: string; password: string; fullName?: string | undefined }) => data)
+  .inputValidator(
+    (data: {
+      email: string;
+      password: string;
+      fullName?: string | undefined;
+      event: "account_created" | "password_reset";
+    }) => ({
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      fullName: data.fullName?.trim() || undefined,
+      event: data.event === "password_reset" ? "password_reset" : "account_created",
+    }),
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context as never);
     const url = process.env["N8N_USER_WEBHOOK_URL"];
@@ -124,11 +136,12 @@ export const sendCredentials = createServerFn({ method: "POST" })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "send_credentials",
           email: data.email,
           password: data.password,
+           event: data.event,
           fullName: data.fullName ?? null,
           appName: "Nyttokalkyl – Kungsbacka kommun",
+           loginUrl: "https://id-preview--16699c16-cabf-4f2e-ae89-5b2138dfbb3a.lovable.app/auth",
         }),
       });
       if (!res.ok) {

@@ -49,6 +49,7 @@ interface NewCredentials {
   email: string;
   password: string;
   fullName?: string | undefined;
+  event: "account_created" | "password_reset";
 }
 
 function AdminPage() {
@@ -102,7 +103,12 @@ function AdminPage() {
     setBusy(true);
     try {
       const result = await createAppUser({ data: { email, fullName } });
-      setCreds({ email: result.email, password: result.password, fullName });
+      setCreds({
+        email: result.email,
+        password: result.password,
+        fullName,
+        event: "account_created",
+      });
       setEmail("");
       setFullName("");
       await refresh();
@@ -133,10 +139,35 @@ function AdminPage() {
         email: result.email,
         password: result.password,
         fullName: user.fullName ?? undefined,
+        event: "password_reset",
       });
       toast.success("Ett nytt lösenord är genererat.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Kunde inte byta lösenord.");
+    }
+  };
+
+  const onSendForUser = async (user: AppUserRow) => {
+    setBusy(true);
+    try {
+      const result = await resetAppUserPassword({ data: { userId: user.id } });
+      const credentials: NewCredentials = {
+        email: result.email,
+        password: result.password,
+        fullName: user.fullName ?? undefined,
+        event: "password_reset",
+      };
+      setCreds(credentials);
+      const response = await sendCredentials({ data: credentials });
+      if (!response.sent) {
+        toast.error("Utskicket misslyckades. De nya uppgifterna visas ovan för kopiering.");
+        return;
+      }
+      toast.success(`Nya kontouppgifter skickades till ${user.email}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kunde inte skicka kontouppgifterna.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -228,7 +259,7 @@ function AdminPage() {
                 </Button>
                 <Button size="sm" className="gap-2" onClick={() => void onSend(creds)}>
                   <Mail className="size-4" />
-                  Skicka till användaren
+                  Skicka kontouppgifter
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setCreds(null)}>
                   Stäng
@@ -263,7 +294,17 @@ function AdminPage() {
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={busy}
+                    onClick={() => void onSendForUser(user)}
+                  >
+                    <Mail className="size-4" />
+                    Skicka kontouppgifter
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
