@@ -7,6 +7,8 @@ export interface SavedCalculation {
   updated_at: string;
 }
 
+export const PENDING_CALCULATION_STORAGE_KEY = "nyttokalkyl:pending-calculation";
+
 export async function listSavedCalculations(): Promise<SavedCalculation[]> {
   const { data, error } = await supabase
     .from("calculations")

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export function useSession() {
   const [user, setUser] = useState<User | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -15,12 +16,19 @@ export function useSession() {
       if (!active) return;
       setUser(data.user ?? null);
       if (data.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        if (active) setFullName(profile?.full_name ?? null);
         const { data: isAdminData } = await supabase.rpc("has_role", {
           _user_id: data.user.id,
           _role: "admin",
         });
         if (active) setIsAdmin(isAdminData === true);
       } else {
+        setFullName(null);
         setIsAdmin(false);
       }
       if (active) setLoading(false);
@@ -38,5 +46,5 @@ export function useSession() {
     };
   }, []);
 
-  return { user, isAdmin, loading };
+  return { user, fullName, isAdmin, loading };
 }

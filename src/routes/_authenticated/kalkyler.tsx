@@ -1,0 +1,165 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ArrowLeft, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
+import {
+  deleteCalculation,
+  listSavedCalculations,
+  loadCalculation,
+  PENDING_CALCULATION_STORAGE_KEY,
+  type SavedCalculation,
+} from "@/lib/nyttokalkyl/saved";
+
+export const Route = createFileRoute("/_authenticated/kalkyler")({
+  head: () => ({
+    meta: [
+      { title: "Mina kalkyler – Nyttokalkyl" },
+      {
+        name: "description",
+        content: "Öppna och hantera dina sparade nyttokalkyler för Kungsbacka kommun.",
+      },
+      { property: "og:title", content: "Mina kalkyler – Nyttokalkyl" },
+      { property: "og:description", content: "Öppna och hantera sparade nyttokalkyler." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: SavedCalculationsPage,
+});
+
+function SavedCalculationsPage() {
+  const navigate = useNavigate();
+  const [items, setItems] = useState<SavedCalculation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    try {
+      setItems(await listSavedCalculations());
+    } catch {
+      toast.error("Kunde inte hämta dina sparade kalkyler.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const openCalculation = async (id: string) => {
+    setBusyId(id);
+    try {
+      const result = await loadCalculation(id);
+      window.sessionStorage.setItem(
+        PENDING_CALCULATION_STORAGE_KEY,
+        JSON.stringify({ id, title: result.title, state: result.state }),
+      );
+      void navigate({ to: "/kalkyl" });
+    } catch {
+      toast.error("Kalkylen kunde inte öppnas.");
+      setBusyId(null);
+    }
+  };
+
+  const removeCalculation = async (id: string) => {
+    setBusyId(id);
+    try {
+      await deleteCalculation(id);
+      setItems((current) => current.filter((item) => item.id !== id));
+      toast.success("Kalkylen är raderad.");
+    } catch {
+      toast.error("Kalkylen kunde inte raderas.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const startNew = () => {
+    window.sessionStorage.removeItem(PENDING_CALCULATION_STORAGE_KEY);
+    void navigate({ to: "/kalkyl" });
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card/95">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand">Nyttokalkyl</p>
+            <h1 className="font-display text-2xl font-semibold text-foreground">Mina kalkyler</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/kalkyl">
+                <ArrowLeft className="size-4" />
+                Till kalkylen
+              </Link>
+            </Button>
+            <Button type="button" size="icon" aria-label="Ny kalkyl" onClick={startNew}>
+              <Plus className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        {loading ? (
+          <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            Laddar sparade kalkyler…
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <FolderOpen className="mx-auto size-10 text-muted-foreground" />
+            <h2 className="mt-4 font-display text-xl font-semibold text-foreground">
+              Inga sparade kalkyler ännu
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Skapa en ny kalkyl med plusknappen och spara den från menyn.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-semibold text-foreground">{item.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Uppdaterad {new Date(item.updated_at).toLocaleString("sv-SE")}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busyId === item.id}
+                    onClick={() => void openCalculation(item.id)}
+                  >
+                    Öppna
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-negative"
+                    aria-label={`Radera ${item.title}`}
+                    disabled={busyId === item.id}
+                    onClick={() => void removeCalculation(item.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+      <Toaster />
+    </div>
+  );
+}

@@ -13,6 +13,14 @@ import { StartChat } from "./StartChat";
 import { ChatAssistant } from "./ChatAssistant";
 import { Toaster } from "@/components/ui/sonner";
 import { PrintView, type PrintStep } from "./PrintView";
+import { PENDING_CALCULATION_STORAGE_KEY } from "@/lib/nyttokalkyl/saved";
+import type { AppState } from "@/lib/nyttokalkyl/types";
+
+interface PendingCalculation {
+  id: string;
+  title: string;
+  state: AppState;
+}
 
 const INTROS: Record<number, string> = {
   1: "Beskriv projektet, jämförelsealternativen och de nyttor förändringen ska ge.",
@@ -24,10 +32,12 @@ const INTROS: Record<number, string> = {
 };
 
 function Inner() {
-  const { state, resetToken } = useNyttokalkyl();
+  const { state, setState, resetToken } = useNyttokalkyl();
   const [step, setStep] = useState(1);
   const [showStartChat, setShowStartChat] = useState(true);
   const [assumptions, setAssumptions] = useState<string | null>(null);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [calculationTitle, setCalculationTitle] = useState("");
   const [printSelection, setPrintSelection] = useState<PrintStep[]>(
     STEPS.map((item) => item.id),
   );
@@ -38,7 +48,27 @@ function Inner() {
     setStep(1);
     setShowStartChat(true);
     setAssumptions(null);
+    setCurrentId(null);
+    setCalculationTitle("");
   }, [resetToken]);
+
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem(PENDING_CALCULATION_STORAGE_KEY);
+    if (!raw) return;
+    window.sessionStorage.removeItem(PENDING_CALCULATION_STORAGE_KEY);
+    try {
+      const pending = JSON.parse(raw) as Partial<PendingCalculation>;
+      if (!pending.id || !pending.title || !pending.state) return;
+      setState(pending.state);
+      setCurrentId(pending.id);
+      setCalculationTitle(pending.title);
+      setStep(1);
+      setShowStartChat(false);
+      setAssumptions(null);
+    } catch {
+      // Ignorera en korrupt tillfällig öppning.
+    }
+  }, [setState]);
 
   const startChatActive =
     showStartChat && state.project.name.trim() === "" && step === 1;
@@ -51,6 +81,10 @@ function Inner() {
         <AppHeader
           printSelection={printSelection}
           onPrintSelectionChange={setPrintSelection}
+          currentId={currentId}
+          onCurrentIdChange={setCurrentId}
+          calculationTitle={calculationTitle}
+          onCalculationTitleChange={setCalculationTitle}
         />
         {startChatActive ? (
           <StartChat

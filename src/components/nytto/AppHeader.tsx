@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +25,7 @@ import {
   FolderOpen,
   HelpCircle,
   LogOut,
+  Plus,
   Printer,
   Save,
   Settings,
@@ -43,13 +42,7 @@ import type { PrintStep } from "./PrintView";
 import { exportNyttokalkylToExcel } from "@/lib/nyttokalkyl/exportExcel";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
-import {
-  deleteCalculation,
-  listSavedCalculations,
-  loadCalculation,
-  saveCalculation,
-  type SavedCalculation,
-} from "@/lib/nyttokalkyl/saved";
+import { saveCalculation } from "@/lib/nyttokalkyl/saved";
 import kungsbackaVapen from "@/assets/kungsbacka-kommunvapen.png.asset.json";
 
 
@@ -99,35 +92,34 @@ const GLOSSARY: { term: string; def: string }[] = [
 export function AppHeader({
   printSelection,
   onPrintSelectionChange,
+  currentId,
+  onCurrentIdChange,
+  calculationTitle,
+  onCalculationTitleChange,
 }: {
   printSelection: PrintStep[];
   onPrintSelectionChange: (steps: PrintStep[]) => void;
+  currentId: string | null;
+  onCurrentIdChange: (id: string | null) => void;
+  calculationTitle: string;
+  onCalculationTitleChange: (title: string) => void;
 }) {
   const { state, setState, reset } = useNyttokalkyl();
   const navigate = useNavigate();
-  const { user, isAdmin } = useSession();
+  const { user, fullName, isAdmin } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [savedOpen, setSavedOpen] = useState(false);
-  const [saved, setSaved] = useState<SavedCalculation[]>([]);
-  const [title, setTitle] = useState("");
-  const [currentId, setCurrentId] = useState<string | null>(null);
   const [savingBusy, setSavingBusy] = useState(false);
 
   useEffect(() => {
-    if (!savedOpen) return;
-    void listSavedCalculations()
-      .then(setSaved)
-      .catch(() => toast.error("Kunde inte hämta dina sparade kalkyler."));
-  }, [savedOpen]);
+    if (!calculationTitle && state.project.name) onCalculationTitleChange(state.project.name);
+  }, [calculationTitle, onCalculationTitleChange, state.project.name]);
 
-  useEffect(() => {
-    if (!title && state.project.name) setTitle(state.project.name);
-  }, [state.project.name, title]);
+  const displayName = fullName?.trim() || user?.email || "";
 
   const onSave = async () => {
-    const name = title.trim() || state.project.name.trim();
+    const name = calculationTitle.trim() || state.project.name.trim();
     if (!name) {
       toast.error("Ge kalkylen ett namn innan du sparar.");
       return;
@@ -135,8 +127,8 @@ export function AppHeader({
     setSavingBusy(true);
     try {
       const id = await saveCalculation(state, name, currentId);
-      setCurrentId(id);
-      setSaved(await listSavedCalculations());
+      onCurrentIdChange(id);
+      onCalculationTitleChange(name);
       toast.success("Kalkylen är sparad.");
     } catch {
       toast.error("Kalkylen kunde inte sparas.");
@@ -145,28 +137,12 @@ export function AppHeader({
     }
   };
 
-  const onLoad = async (id: string) => {
-    try {
-      const result = await loadCalculation(id);
-      setState(result.state);
-      setCurrentId(id);
-      setTitle(result.title);
-      setSavedOpen(false);
-      toast.success(`"${result.title}" är öppnad.`);
-    } catch {
-      toast.error("Kalkylen kunde inte öppnas.");
-    }
-  };
-
-  const onDeleteSaved = async (id: string) => {
-    try {
-      await deleteCalculation(id);
-      if (currentId === id) setCurrentId(null);
-      setSaved(await listSavedCalculations());
-      toast.success("Kalkylen är raderad.");
-    } catch {
-      toast.error("Kalkylen kunde inte raderas.");
-    }
+  const onNewCalculation = () => {
+    reset();
+    onCurrentIdChange(null);
+    onCalculationTitleChange("");
+    void navigate({ to: "/kalkyl" });
+    toast.success("Ny kalkyl är skapad.");
   };
 
   const onSignOut = async () => {
@@ -188,6 +164,7 @@ export function AppHeader({
     try {
       const parsed = JSON.parse(await file.text()) as Partial<AppState>;
       const base = initialState();
+      const importedName = parsed.project?.name?.trim() ?? "";
       setState({
         project: { ...base.project, ...parsed.project },
         costToday: { ...base.costToday, ...parsed.costToday },
@@ -198,6 +175,8 @@ export function AppHeader({
         surveys: parsed.surveys ?? {},
 
       });
+      onCurrentIdChange(null);
+      onCalculationTitleChange(importedName);
       toast.success("Kalkylen importerades.");
     } catch {
       toast.error("Kunde inte läsa filen. Är det en giltig JSON-export?");
@@ -334,6 +313,15 @@ export function AppHeader({
             </DialogContent>
           </Dialog>
           <Button
+            type="button"
+            variant="default"
+            size="icon"
+            aria-label="Ny kalkyl"
+            onClick={onNewCalculation}
+          >
+            <Plus className="size-4" />
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             className="gap-2"
@@ -343,66 +331,12 @@ export function AppHeader({
             <Save className="size-4" />
             <span className="hidden sm:inline">Spara</span>
           </Button>
-          <Dialog open={savedOpen} onOpenChange={setSavedOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/kalkyler">
                 <FolderOpen className="size-4" />
                 <span className="hidden sm:inline">Mina kalkyler</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Mina kalkyler</DialogTitle>
-                <DialogDescription>
-                  Spara den pågående kalkylen eller återuppta en tidigare.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <Label htmlFor="calcTitle">Namn på kalkylen</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="calcTitle"
-                    value={title}
-                    placeholder="T.ex. Digital signering hemtjänst"
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                  <Button disabled={savingBusy} onClick={() => void onSave()}>
-                    Spara
-                  </Button>
-                </div>
-              </div>
-              <div className="divide-y divide-border">
-                {saved.length === 0 && (
-                  <p className="py-3 text-sm text-muted-foreground">
-                    Du har inga sparade kalkyler ännu.
-                  </p>
-                )}
-                {saved.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Uppdaterad {new Date(item.updated_at).toLocaleString("sv-SE")}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => void onLoad(item.id)}>
-                        Öppna
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-negative"
-                        onClick={() => void onDeleteSaved(item.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+            </Link>
+          </Button>
           {isAdmin && (
             <Button asChild variant="ghost" size="sm" className="gap-2">
               <Link to="/admin">
@@ -411,21 +345,6 @@ export function AppHeader({
               </Link>
             </Button>
           )}
-          <Button asChild variant="ghost" size="sm" className="gap-2" aria-label="Mitt konto och lösenord">
-            <Link to="/konto">
-              <Settings className="size-4" />
-              <span className="hidden lg:inline">Mitt konto</span>
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2"
-            onClick={() => void onSignOut()}
-          >
-            <LogOut className="size-4" />
-            <span className="hidden lg:inline">Logga ut</span>
-          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => void onExport()}>
 
             <Download className="size-4" />
@@ -480,6 +399,28 @@ export function AppHeader({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="gap-2" aria-label="Mitt konto och lösenord">
+              <Link to="/konto">
+                <Settings className="size-4" />
+                <span className="hidden lg:inline">Mitt konto</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => void onSignOut()}
+            >
+              <LogOut className="size-4" />
+              <span className="hidden lg:inline">Logga ut</span>
+            </Button>
+            {displayName && (
+              <span className="hidden max-w-56 truncate text-sm font-medium text-foreground xl:block">
+                {displayName}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </header>
