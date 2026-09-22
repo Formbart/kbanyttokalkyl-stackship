@@ -61,7 +61,7 @@ export async function loadCalculation(id: string): Promise<{ title: string; stat
   return {
     title: data.title,
     state: {
-      project: { ...base.project, ...parsed.project },
+      project: { ...base.project, ...parsed.project, name: data.title },
       costToday: { ...base.costToday, ...parsed.costToday },
       costChange: { ...base.costChange, ...parsed.costChange },
       qualRatings: parsed.qualRatings ?? {},
@@ -70,6 +70,22 @@ export async function loadCalculation(id: string): Promise<{ title: string; stat
       surveys: parsed.surveys ?? {},
     },
   };
+}
+
+export async function renameCalculation(id: string, title: string): Promise<void> {
+  const { data: session } = await supabase.auth.getUser();
+  const userId = session.user?.id;
+  if (!userId) throw new Error("Du är inte inloggad.");
+
+  const { data, error } = await supabase
+    .from("calculations")
+    .update({ title, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Kalkylen hittades inte.");
 }
 
 export async function deleteCalculation(id: string): Promise<void> {

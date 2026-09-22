@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +25,6 @@ import {
   FolderOpen,
   HelpCircle,
   LogOut,
-  Pencil,
   Plus,
   Printer,
   Save,
@@ -112,8 +110,6 @@ export function AppHeader({
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const [titleOpen, setTitleOpen] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
   const [savingBusy, setSavingBusy] = useState(false);
 
   useEffect(() => {
@@ -122,41 +118,6 @@ export function AppHeader({
 
   const displayName = fullName?.trim() || user?.email || "";
   const activeTitle = state.project.name.trim() || calculationTitle.trim();
-
-  const openTitleDialog = () => {
-    setTitleDraft(activeTitle);
-    setTitleOpen(true);
-  };
-
-  const onSaveTitle = async () => {
-    const name = titleDraft.trim();
-    if (!name) {
-      toast.error("Skriv en rubrik först.");
-      return;
-    }
-    const nextState = {
-      ...state,
-      project: { ...state.project, name },
-    };
-    setState(nextState);
-    onCalculationTitleChange(name);
-    setTitleOpen(false);
-
-    if (!currentId) {
-      toast.success("Rubriken är ändrad.");
-      return;
-    }
-
-    setSavingBusy(true);
-    try {
-      await saveCalculation(nextState, name, currentId);
-      toast.success("Rubriken är ändrad och sparad.");
-    } catch {
-      toast.error("Rubriken ändrades här men kunde inte sparas.");
-    } finally {
-      setSavingBusy(false);
-    }
-  };
 
   const onSave = async () => {
     const name = state.project.name.trim() || calculationTitle.trim();
@@ -250,57 +211,10 @@ export function AppHeader({
             <h1 className="truncate font-display text-lg font-semibold leading-tight text-foreground">
               Nyttokalkyl
             </h1>
-            <div className="mt-0.5 flex min-w-0 items-center gap-2">
-              <p className="truncate text-xs text-muted-foreground">
-                Kungsbacka kommun
-                {activeTitle ? ` · ${activeTitle}` : ""}
-              </p>
-              <Dialog open={titleOpen} onOpenChange={setTitleOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0"
-                    aria-label="Ändra rubrik"
-                    onClick={openTitleDialog}
-                  >
-                    <Pencil className="size-3.5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Ändra rubrik</DialogTitle>
-                    <DialogDescription>
-                      Rubriken används i menyn, Mina kalkyler och vid sparning.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <Input
-                      value={titleDraft}
-                      onChange={(event) => setTitleDraft(event.target.value)}
-                      placeholder="Namn på nyttokalkylen"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setTitleOpen(false)}
-                      >
-                        Avbryt
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={savingBusy}
-                        onClick={() => void onSaveTitle()}
-                      >
-                        Spara rubrik
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              Kungsbacka kommun
+              {activeTitle ? ` · ${activeTitle}` : ""}
+            </p>
           </div>
         </div>
 

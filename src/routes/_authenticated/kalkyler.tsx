@@ -1,14 +1,23 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   deleteCalculation,
   listSavedCalculations,
   loadCalculation,
   PENDING_CALCULATION_STORAGE_KEY,
+  renameCalculation,
   type SavedCalculation,
 } from "@/lib/nyttokalkyl/saved";
 
@@ -34,6 +43,8 @@ function SavedCalculationsPage() {
   const [items, setItems] = useState<SavedCalculation[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<SavedCalculation | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
 
   const refresh = async () => {
     try {
@@ -72,6 +83,36 @@ function SavedCalculationsPage() {
       toast.success("Kalkylen är raderad.");
     } catch {
       toast.error("Kalkylen kunde inte raderas.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openRename = (item: SavedCalculation) => {
+    setRenameTarget(item);
+    setTitleDraft(item.title);
+  };
+
+  const saveRename = async () => {
+    const name = titleDraft.trim();
+    if (!renameTarget || !name) {
+      toast.error("Skriv en rubrik först.");
+      return;
+    }
+    setBusyId(renameTarget.id);
+    try {
+      await renameCalculation(renameTarget.id, name);
+      setItems((current) =>
+        current.map((item) =>
+          item.id === renameTarget.id
+            ? { ...item, title: name, updated_at: new Date().toISOString() }
+            : item,
+        ),
+      );
+      setRenameTarget(null);
+      toast.success("Rubriken är ändrad.");
+    } catch {
+      toast.error("Rubriken kunde inte ändras.");
     } finally {
       setBusyId(null);
     }
@@ -135,6 +176,16 @@ function SavedCalculationsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Ändra rubrik för ${item.title}`}
+                    disabled={busyId === item.id}
+                    onClick={() => openRename(item)}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     disabled={busyId === item.id}
@@ -159,6 +210,44 @@ function SavedCalculationsPage() {
           </div>
         )}
       </main>
+      <Dialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRenameTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ändra rubrik</DialogTitle>
+            <DialogDescription>
+              Rubriken visas i Mina kalkyler och används när du öppnar kalkylen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              placeholder="Namn på nyttokalkylen"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRenameTarget(null)}
+              >
+                Avbryt
+              </Button>
+              <Button
+                type="button"
+                disabled={busyId === renameTarget?.id}
+                onClick={() => void saveRename()}
+              >
+                Spara rubrik
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Toaster />
     </div>
   );
