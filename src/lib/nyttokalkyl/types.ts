@@ -72,6 +72,36 @@ export interface FollowUp {
   atgard: string;
 }
 
+export type SurveyQuestionType = "flerval" | "skala" | "fritext";
+
+export interface SurveyQuestion {
+  id: string;
+  question: string;
+  questionType: SurveyQuestionType;
+  options?: string[] | undefined;
+  /** Sätts av AI:n, tas bort när användaren redigerar frågan manuellt. */
+  ai?: boolean | undefined;
+}
+
+export interface Survey {
+  title: string;
+  intro: string;
+  targetGroup: string;
+  questions: SurveyQuestion[];
+}
+
+export const SURVEY_QUESTION_TYPES: SurveyQuestionType[] = [
+  "flerval",
+  "skala",
+  "fritext",
+];
+
+export const SURVEY_QUESTION_TYPE_LABELS: Record<SurveyQuestionType, string> = {
+  flerval: "Flerval",
+  skala: "Skala",
+  fritext: "Fritext",
+};
+
 export interface AppState {
   project: {
     name: string;
@@ -87,7 +117,9 @@ export interface AppState {
   qualRatings: Record<number, { current: number; expected: number }>;
   reallocationInGraph: boolean;
   followUp: Record<number, FollowUp>;
+  surveys: Record<number, Survey>;
 }
+
 
 export const FULL_TIME_HOURS = 1760;
 export const PO_FACTOR = 1.4024;
@@ -211,6 +243,8 @@ export function initialState(): AppState {
     qualRatings: {},
     reallocationInGraph: false,
     followUp: {},
+    surveys: {},
+
   };
 }
 

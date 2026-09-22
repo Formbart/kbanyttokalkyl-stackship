@@ -13,6 +13,7 @@ import {
   type FollowUp,
   type StaffChange,
   type StaffToday,
+  type Survey,
 } from "./types";
 
 interface StoreValue {
@@ -25,9 +26,11 @@ interface StoreValue {
   ) => void;
   setQualRating: (index: number, current: number, expected: number) => void;
   setFollowUp: (index: number, patch: Partial<FollowUp>) => void;
+  setSurvey: (index: number, survey: Survey | null) => void;
   reset: () => void;
   resetToken: number;
 }
+
 
 const StoreContext = createContext<StoreValue | null>(null);
 
@@ -79,6 +82,17 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const setSurvey = useCallback(
+    (index: number, survey: Survey | null) =>
+      setState((s) => {
+        const next = { ...s.surveys };
+        if (survey === null) delete next[index];
+        else next[index] = survey;
+        return { ...s, surveys: next };
+      }),
+    [],
+  );
+
   const reset = useCallback(() => {
     setState(initialState());
     setResetToken((t) => t + 1);
@@ -92,11 +106,22 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
       updateSheet,
       setQualRating,
       setFollowUp,
+      setSurvey,
       reset,
       resetToken,
     }),
-    [state, resetToken, updateProject, updateSheet, setQualRating, setFollowUp, reset],
+    [
+      state,
+      resetToken,
+      updateProject,
+      updateSheet,
+      setQualRating,
+      setFollowUp,
+      setSurvey,
+      reset,
+    ],
   );
+
 
   return (
     <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

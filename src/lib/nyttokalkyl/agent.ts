@@ -5,7 +5,9 @@ export type AgentAction =
   | "assess_qualitative"
   | "review_calculation"
   | "suggest_followup"
+  | "suggest_survey"
   | "chat";
+
 
 export interface FactCheckMeta {
   factChecked?: boolean | undefined;

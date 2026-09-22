@@ -103,6 +103,8 @@ export function StartChat({
     });
 
     setState({
+      surveys: {},
+
       project: {
         ...base.project,
         name: draft.project?.name ?? "",
