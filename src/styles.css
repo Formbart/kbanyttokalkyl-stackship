@@ -214,6 +214,23 @@
     display: none !important;
   }
 
+  /* Dialoger, popovers och notiser ligger utanför appens behållare
+     (portaler i body) och får aldrig följa med i utskriften. */
+  [data-radix-popper-content-wrapper],
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-overlay"],
+  [data-slot="sheet-content"],
+  [role="dialog"],
+  [role="alertdialog"],
+  [data-sonner-toaster],
+  [data-radix-portal] {
+    display: none !important;
+  }
+
+
   .print-document {
     display: block !important;
     position: static !important;
