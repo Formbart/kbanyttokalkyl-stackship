@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedKalkylRouteImport } from './routes/_authenticated/kalkyl'
+import { Route as AuthenticatedKalkylerRouteImport } from './routes/_authenticated/kalkyler'
 import { Route as AuthenticatedKontoRouteImport } from './routes/_authenticated/konto'
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 
@@ -41,6 +42,11 @@ const AuthenticatedKalkylRoute = AuthenticatedKalkylRouteImport.update({
   path: '/kalkyl',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKalkylerRoute = AuthenticatedKalkylerRouteImport.update({
+  id: '/kalkyler',
+  path: '/kalkyler',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedKontoRoute = AuthenticatedKontoRouteImport.update({
   id: '/konto',
   path: '/konto',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/kalkyl': typeof AuthenticatedKalkylRoute
+  '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/kalkyl': typeof AuthenticatedKalkylRoute
+  '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/kalkyl': typeof AuthenticatedKalkylRoute
+  '/_authenticated/kalkyler': typeof AuthenticatedKalkylerRoute
   '/_authenticated/konto': typeof AuthenticatedKontoRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/kalkyl'
+    | '/kalkyler'
     | '/konto'
     | '/api/public/bootstrap-admin'
   fileRoutesByTo: FileRoutesByTo
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/kalkyl'
+    | '/kalkyler'
     | '/konto'
     | '/api/public/bootstrap-admin'
   id:
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/kalkyl'
+    | '/_authenticated/kalkyler'
     | '/_authenticated/konto'
     | '/api/public/bootstrap-admin'
   fileRoutesById: FileRoutesById
@@ -150,6 +162,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKalkylRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/kalkyler': {
+      id: '/_authenticated/kalkyler'
+      path: '/kalkyler'
+      fullPath: '/kalkyler'
+      preLoaderRoute: typeof AuthenticatedKalkylerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/konto': {
       id: '/_authenticated/konto'
       path: '/konto'
@@ -170,12 +189,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedKalkylRoute: typeof AuthenticatedKalkylRoute
+  AuthenticatedKalkylerRoute: typeof AuthenticatedKalkylerRoute
   AuthenticatedKontoRoute: typeof AuthenticatedKontoRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedKalkylRoute: AuthenticatedKalkylRoute,
+  AuthenticatedKalkylerRoute: AuthenticatedKalkylerRoute,
   AuthenticatedKontoRoute: AuthenticatedKontoRoute,
 }
 
