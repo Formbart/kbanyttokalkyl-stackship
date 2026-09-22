@@ -282,13 +282,13 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   result.addRow(["Omfördelningsnytta inkluderad", state.reallocationInGraph ? "Ja" : "Nej"]);
   result.addRow(["Frigjorda timmar/år", realloc.hoursFreed]);
   result.addRow(["Värde av frigjord tid/år (kr)", realloc.valueFreed]);
-  result.addRow(["Finansiell nettonytta (kr)", net.totalNet]);
+  result.addRow(["Finansiell nettonytta (kr)", { formula: "SUM(B15:B20)", result: net.totalNet }]);
   result.addRow(["Break-even år", String(net.breakEvenYear)]);
   ["B5", "B6"].forEach((address) => formula(result.getCell(address), currencyFormat, true));
   input(result.getCell("B7"));
   input(result.getCell("B8"), numberFormat);
   input(result.getCell("B9"), currencyFormat);
-  input(result.getCell("B10"), currencyFormat);
+  formula(result.getCell("B10"), currencyFormat);
   input(result.getCell("B11"));
   section(result, 13, "Nettonytta per år", 8);
   header(result.addRow(["År", "Nettonytta (kr)", "Ackumulerad nettonytta (kr)"]));
@@ -296,7 +296,7 @@ export async function exportNyttokalkylToExcel(state: AppState) {
     const rowNumber = result.rowCount + 1;
     const todaySourceRow = today.worksheet.rowCount - 6 + index;
     const changeSourceRow = change.worksheet.rowCount - 6 + index;
-    const linkedFormula = `'${today.worksheet.name}'!F${todaySourceRow}-'${change.worksheet.name}'!F${changeSourceRow}`;
+    const linkedFormula = `'${today.worksheet.name}'!F${todaySourceRow}-'${change.worksheet.name}'!F${changeSourceRow}+IF($B$7="Ja",$B$9*(1+'${change.worksheet.name}'!$B$5)^(A${rowNumber}-$A$15)/(1+${DISCOUNT_RATE})^(A${rowNumber}-$A$15),0)`;
     const row = result.addRow([
       String(item.year),
       { formula: linkedFormula, result: item.net },
