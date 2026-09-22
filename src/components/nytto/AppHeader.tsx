@@ -119,7 +119,7 @@ export function AppHeader({
   const displayName = fullName?.trim() || user?.email || "";
 
   const onSave = async () => {
-    const name = calculationTitle.trim() || state.project.name.trim();
+    const name = state.project.name.trim() || calculationTitle.trim();
     if (!name) {
       toast.error("Ge kalkylen ett namn innan du sparar.");
       return;

@@ -28,11 +28,15 @@ export async function saveCalculation(
   if (!userId) throw new Error("Du är inte inloggad.");
 
   if (id) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("calculations")
-      .update({ title, data: state as unknown as never })
-      .eq("id", id);
+      .update({ title, data: state as unknown as never, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) throw new Error("Kalkylen hittades inte.");
     return id;
   }
 
