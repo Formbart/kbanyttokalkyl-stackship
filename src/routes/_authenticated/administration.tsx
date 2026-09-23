@@ -60,11 +60,21 @@ export const Route = createFileRoute("/_authenticated/administration")({
 });
 
 function AdministrationPage() {
-  const { isAdmin, loading } = useSession();
+  const { isAdmin, isSuperAdmin, forvaltning: ownForvaltning, loading } =
+    useSession();
   const { personalData, reload } = usePositions();
+  const allowed = isSuperAdmin
+    ? FORVALTNINGAR
+    : ownForvaltning
+      ? [ownForvaltning]
+      : [];
   const [forvaltning, setForvaltning] = useState(FORVALTNINGAR[0]!);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!isSuperAdmin && ownForvaltning) setForvaltning(ownForvaltning);
+  }, [isSuperAdmin, ownForvaltning]);
 
   useEffect(() => {
     if (!loading && isAdmin) void reload();
@@ -88,6 +98,26 @@ function AdministrationPage() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Ditt konto har inte behörighet till Administration.
+          </p>
+          <Button asChild className="mt-5">
+            <Link to="/kalkyl">Till kalkylen</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (allowed.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="max-w-md text-center">
+          <h1 className="font-display text-xl font-semibold text-foreground">
+            Ingen förvaltning tilldelad
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ditt konto är inte kopplat till någon förvaltning. Be en
+            superadministratör att tilldela din förvaltning under Användare, så
+            kan du underhålla befattningslistan för den.
           </p>
           <Button asChild className="mt-5">
             <Link to="/kalkyl">Till kalkylen</Link>
@@ -153,6 +183,12 @@ function AdministrationPage() {
           Underhåll förvaltningarnas befattningar och månadslöner. Listorna är
           gemensamma och används av alla som gör nyttokalkyler.
         </p>
+        {!isSuperAdmin && (
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Du hanterar befattningar för <strong>{ownForvaltning}</strong> — den
+            förvaltning ditt konto är kopplat till.
+          </p>
+        )}
 
         <Tabs defaultValue="positions" className="mt-6">
           <TabsList>
@@ -165,13 +201,14 @@ function AdministrationPage() {
                   <p className="mb-1.5 text-sm font-medium">Förvaltning</p>
                   <Select
                     value={forvaltning}
+                    disabled={allowed.length === 1}
                     onValueChange={(v) => setForvaltning(v)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {FORVALTNINGAR.map((f) => (
+                      {allowed.map((f) => (
                         <SelectItem key={f} value={f}>
                           {f}
                         </SelectItem>
