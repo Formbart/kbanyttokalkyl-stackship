@@ -75,18 +75,21 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          forvaltning: string | null
           full_name: string | null
           id: string
         }
         Insert: {
           created_at?: string
           email: string
+          forvaltning?: string | null
           full_name?: string | null
           id: string
         }
         Update: {
           created_at?: string
           email?: string
+          forvaltning?: string | null
           full_name?: string | null
           id?: string
         }
