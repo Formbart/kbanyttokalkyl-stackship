@@ -23,6 +23,38 @@ async function assertAdmin(context: AuthContext) {
   if (data !== true) throw new Error("Endast administratörer har tillgång.");
 }
 
+/**
+ * Administratörer får bara ändra sin egen förvaltnings lista.
+ * Superadministratörer får ändra alla förvaltningar.
+ */
+async function assertCanManage(context: AuthContext, forvaltning: string) {
+  await assertAdmin(context);
+  const { data: isSuper } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "superadmin",
+  });
+  if (isSuper === true) return;
+  const { supabaseAdmin } = await import(
+    "@/integrations/supabase/client.server"
+  );
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("forvaltning")
+    .eq("id", context.userId)
+    .maybeSingle();
+  const own = profile?.forvaltning ?? null;
+  if (!own) {
+    throw new Error(
+      "Ditt konto är inte kopplat till någon förvaltning. En superadministratör behöver tilldela en förvaltning.",
+    );
+  }
+  if (own !== forvaltning) {
+    throw new Error(
+      `Du kan bara hantera befattningar för ${own}.`,
+    );
+  }
+}
+
 /** Alla förvaltningars befattningslistor — gemensamma för hela kommunen. */
 export const listPositions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -65,7 +97,7 @@ export const replacePositions = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as unknown as AuthContext);
+    await assertCanManage(context as unknown as AuthContext, data.forvaltning);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
@@ -96,7 +128,7 @@ export const clearPositions = createServerFn({ method: "POST" })
     return { forvaltning: data.forvaltning };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as unknown as AuthContext);
+    await assertCanManage(context as unknown as AuthContext, data.forvaltning);
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );

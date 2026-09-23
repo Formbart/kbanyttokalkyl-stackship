@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function useSession() {
   const [user, setUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
+  const [forvaltning, setForvaltning] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -19,10 +20,13 @@ export function useSession() {
       if (data.user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, forvaltning")
           .eq("id", data.user.id)
           .maybeSingle();
-        if (active) setFullName(profile?.full_name ?? null);
+        if (active) {
+          setFullName(profile?.full_name ?? null);
+          setForvaltning(profile?.forvaltning ?? null);
+        }
         const { data: isAdminData } = await supabase.rpc("is_platform_admin", {
           _user_id: data.user.id,
         });
@@ -34,6 +38,7 @@ export function useSession() {
         if (active) setIsSuperAdmin(isSuperData === true);
       } else {
         setFullName(null);
+        setForvaltning(null);
         setIsAdmin(false);
         setIsSuperAdmin(false);
       }
@@ -52,5 +57,5 @@ export function useSession() {
     };
   }, []);
 
-  return { user, fullName, isAdmin, isSuperAdmin, loading };
+  return { user, fullName, forvaltning, isAdmin, isSuperAdmin, loading };
 }
