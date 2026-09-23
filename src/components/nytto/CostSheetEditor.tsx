@@ -518,7 +518,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
 
                   {scenario === "today" ? (
                     <Field
-                      label="Beräknad kostnad/år"
+                      label={<CostLabel />}
                       hint={count > 1 ? `Totalt för ${count} personer` : ""}
                     >
                       <div className="num flex h-9 items-center rounded-md bg-brand-soft px-3 text-sm font-semibold text-brand-dark">
@@ -562,7 +562,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     />
                   </Field>
                   {scenario === "change" && (
-                    <Field label="Beräknad kostnad/år">
+                    <Field label={<CostLabel />}>
                       <div className="num flex h-9 items-center rounded-md bg-brand-soft px-3 text-sm font-semibold text-brand-dark">
                         {formatKr(annual)}
                       </div>
