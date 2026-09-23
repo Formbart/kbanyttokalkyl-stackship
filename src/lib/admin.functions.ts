@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { FORVALTNINGAR } from "@/lib/nyttokalkyl/types";
 
 export type AppRole = "user" | "admin" | "superadmin";
 
@@ -7,6 +8,7 @@ export interface AppUserRow {
   id: string;
   email: string;
   fullName: string | null;
+  forvaltning: string | null;
   roles: AppRole[];
   isAdmin: boolean;
   createdAt: string;
@@ -55,7 +57,7 @@ export const listAppUsers = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: profiles, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, email, full_name, created_at")
+      .select("id, email, full_name, forvaltning, created_at")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     const { data: roles } = await supabaseAdmin.from("user_roles").select("user_id, role");
@@ -71,6 +73,7 @@ export const listAppUsers = createServerFn({ method: "GET" })
         id: p.id,
         email: p.email,
         fullName: p.full_name,
+        forvaltning: p.forvaltning ?? null,
         roles: userRoles,
         isAdmin: userRoles.includes("admin") || userRoles.includes("superadmin"),
         createdAt: p.created_at,
@@ -103,6 +106,27 @@ export const setAppUserRole = createServerFn({ method: "POST" })
       .from("user_roles")
       .insert({ user_id: data.userId, role: data.role });
     if (insertError) throw new Error(insertError.message);
+    return { ok: true };
+  });
+
+/** Superadministratör kopplar ett konto till en förvaltning (eller ingen). */
+export const setAppUserForvaltning = createServerFn({ method: "POST" })
+  .inputValidator((data: { userId: string; forvaltning: string | null }) => {
+    const value = (data.forvaltning ?? "").trim();
+    if (value !== "" && !FORVALTNINGAR.includes(value)) {
+      throw new Error("Okänd förvaltning.");
+    }
+    return { userId: data.userId, forvaltning: value === "" ? null : value };
+  })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ forvaltning: data.forvaltning })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
