@@ -11,9 +11,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Copy,
+  Download,
+  Plus,
+  Printer,
+  RefreshCw,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AiButton, Field } from "./shared";
+import { buildFormsText, downloadSurveyDocx } from "@/lib/nyttokalkyl/formsExport";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
@@ -87,6 +105,7 @@ export function SurveyTab({
   const [loading, setLoading] = useState(false);
   const [questionCount, setQuestionCount] = useState(6);
   const [printing, setPrinting] = useState(false);
+  const [formsOpen, setFormsOpen] = useState(false);
 
   const isQualitative = QUALITATIVE_TYPES.includes(benefit.type as BenefitType);
   const highlighted =
@@ -197,6 +216,62 @@ export function SurveyTab({
           <Printer className="size-4" />
           Skriv ut enkät
         </Button>
+        <Dialog open={formsOpen} onOpenChange={setFormsOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Send className="size-4" />
+              Till Microsoft Forms
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Till Microsoft Forms</DialogTitle>
+              <DialogDescription>
+                Microsoft Forms Snabbimport tolkar text mönstermässigt: en numrerad
+                fråga följd av svarsalternativ märkta A., B. … på egna rader blir en
+                flervalsfråga, och en fråga utan alternativ blir en fritextfråga.
+                Forms har inget stöd för skalfrågor, så skalor blir flervalsfrågor
+                A–E. Kontrollera alltid frågetyperna i Forms importförhandsgranskning
+                innan du publicerar.
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              readOnly
+              rows={16}
+              className="font-mono text-xs"
+              value={buildFormsText(survey)}
+              aria-label="Text för Microsoft Forms"
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(buildFormsText(survey))
+                    .then(() => toast.success("Texten är kopierad."))
+                    .catch(() => toast.error("Kunde inte kopiera texten."));
+                }}
+              >
+                <Copy className="size-4" />
+                Kopiera text
+              </Button>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  void downloadSurveyDocx(survey)
+                    .then(() => toast.success("Word-filen laddas ner."))
+                    .catch(() => toast.error("Kunde inte skapa Word-filen."));
+                }}
+              >
+                <Download className="size-4" />
+                Ladda ner som Word
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Button
           variant="ghost"
           size="sm"
