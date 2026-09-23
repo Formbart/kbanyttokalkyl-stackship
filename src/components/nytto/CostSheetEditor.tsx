@@ -27,8 +27,12 @@ import {
   WarningBanner,
 } from "./shared";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { usePositions } from "@/hooks/usePositions";
+import { positionLabel } from "@/lib/nyttokalkyl/positionLabel";
 import {
   COST_TYPES,
+  FORVALTNINGAR,
+  FORVALTNING_OVRIGT,
   FULL_TIME_HOURS,
   ROLE_NAMES,
   ROLE_SALARIES,
