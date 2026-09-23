@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      positions: {
+        Row: {
+          aid: string
+          befattning: string
+          created_at: string
+          forvaltning: string
+          id: string
+          manadslon: number
+          sort_order: number
+        }
+        Insert: {
+          aid?: string
+          befattning: string
+          created_at?: string
+          forvaltning: string
+          id?: string
+          manadslon?: number
+          sort_order?: number
+        }
+        Update: {
+          aid?: string
+          befattning?: string
+          created_at?: string
+          forvaltning?: string
+          id?: string
+          manadslon?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -95,6 +125,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "superadmin"
