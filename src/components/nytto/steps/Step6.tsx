@@ -103,7 +103,16 @@ export function Step6() {
                       </span>
                     ) : null}
                   </TabsTrigger>
+                  <TabsTrigger value="results" className="gap-1.5">
+                    Enkätresultat
+                    {state.surveyResults[i] ? (
+                      <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-primary-foreground">
+                        {state.surveyResults[i]!.responseCount}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
                 </TabsList>
+
                 <TabsContent value="plan">
               <div className="grid gap-4 md:grid-cols-2">
 
