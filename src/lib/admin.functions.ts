@@ -1,23 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type AppRole = "user" | "admin" | "superadmin";
+
 export interface AppUserRow {
   id: string;
   email: string;
   fullName: string | null;
+  roles: AppRole[];
   isAdmin: boolean;
   createdAt: string;
+}
+
+async function assertRole(
+  context: {
+    supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
+    userId: string;
+  },
+  role: AppRole,
+  message: string,
+) {
+  const { data } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: role,
+  });
+  if (data !== true) throw new Error(message);
 }
 
 async function assertAdmin(context: {
   supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
   userId: string;
 }) {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (data !== true) throw new Error("Endast administratörer har tillgång.");
+  await assertRole(context, "admin", "Endast administratörer har tillgång.");
+}
+
+async function assertSuperAdmin(context: {
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
+  userId: string;
+}) {
+  await assertRole(context, "superadmin", "Endast superadministratörer kan ändra roller.");
 }
 
 function generatePassword(): string {
@@ -37,18 +58,52 @@ export const listAppUsers = createServerFn({ method: "GET" })
       .select("id, email, full_name, created_at")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    const { data: roles } = await supabaseAdmin
+    const { data: roles } = await supabaseAdmin.from("user_roles").select("user_id, role");
+    const rolesByUser = new Map<string, AppRole[]>();
+    for (const r of roles ?? []) {
+      const list = rolesByUser.get(r.user_id) ?? [];
+      list.push(r.role as AppRole);
+      rolesByUser.set(r.user_id, list);
+    }
+    return (profiles ?? []).map((p) => {
+      const userRoles = rolesByUser.get(p.id) ?? [];
+      return {
+        id: p.id,
+        email: p.email,
+        fullName: p.full_name,
+        roles: userRoles,
+        isAdmin: userRoles.includes("admin") || userRoles.includes("superadmin"),
+        createdAt: p.created_at,
+      };
+    });
+  });
+
+/** Superadministratör sätter rollen för ett konto (en roll per konto). */
+export const setAppUserRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { userId: string; role: string }) => {
+    const role = data.role as AppRole;
+    if (!["user", "admin", "superadmin"].includes(role)) {
+      throw new Error("Ogiltig roll.");
+    }
+    return { userId: data.userId, role };
+  })
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context as never);
+    if (data.userId === (context as { userId: string }).userId) {
+      throw new Error("Du kan inte ändra rollen på ditt eget konto.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: deleteError } = await supabaseAdmin
       .from("user_roles")
-      .select("user_id, role")
-      .eq("role", "admin");
-    const admins = new Set((roles ?? []).map((r) => r.user_id));
-    return (profiles ?? []).map((p) => ({
-      id: p.id,
-      email: p.email,
-      fullName: p.full_name,
-      isAdmin: admins.has(p.id),
-      createdAt: p.created_at,
-    }));
+      .delete()
+      .eq("user_id", data.userId);
+    if (deleteError) throw new Error(deleteError.message);
+    const { error: insertError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: data.userId, role: data.role });
+    if (insertError) throw new Error(insertError.message);
+    return { ok: true };
   });
 
 export const createAppUser = createServerFn({ method: "POST" })
