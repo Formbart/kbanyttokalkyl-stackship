@@ -53,7 +53,7 @@ interface NewCredentials {
 }
 
 function AdminPage() {
-  const { isAdmin, loading } = useSession();
+  const { isSuperAdmin: isAdmin, loading } = useSession();
   const [users, setUsers] = useState<AppUserRow[]>([]);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");

@@ -34,7 +34,34 @@ export interface CostItem {
   source: string;
 }
 
+export const FORVALTNING_OVRIGT = "Övrigt (ej förvaltningsbundet)";
+
+export const FORVALTNINGAR = [
+  "Bygg- och miljöförvaltningen",
+  "Förvaltningen för Förskola & Grundskola",
+  "Förvaltningen för Gymnasium & Arbetsmarknad",
+  "Förvaltningen för Individ & Familjeomsorg",
+  "Förvaltningen för Kultur & Fritid",
+  "Förvaltningen för Service",
+  "Förvaltningen för Teknik",
+  "Förvaltningen för Vård & Omsorg",
+  "Kommunstyrelsens förvaltning",
+];
+
+export interface Position {
+  befattning: string;
+  aid: string;
+  /** Kr/månad, exkl. PO. */
+  manadslon: number;
+}
+
+export type PersonalData = Record<string, Position[]>;
+
 export interface StaffToday {
+  /** En av FORVALTNINGAR, eller FORVALTNING_OVRIGT. */
+  forvaltning: string;
+  /** Index i personalData[forvaltning], eller null för Övrigt. */
+  positionIndex: number | null;
   role: string;
   salary: number;
   hours: number;
@@ -236,6 +263,8 @@ export function emptyCostItem(startYear: number): CostItem {
 
 export function emptyStaffToday(): StaffToday {
   return {
+    forvaltning: FORVALTNING_OVRIGT,
+    positionIndex: null,
     role: "Övrig personalresurs",
     salary: 0,
     hours: FULL_TIME_HOURS,
@@ -246,6 +275,8 @@ export function emptyStaffToday(): StaffToday {
 
 export function emptyStaffChange(): StaffChange {
   return {
+    forvaltning: FORVALTNING_OVRIGT,
+    positionIndex: null,
     role: "Övrig personalresurs",
     salary: 0,
     hours: FULL_TIME_HOURS,

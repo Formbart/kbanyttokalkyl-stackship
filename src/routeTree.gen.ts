@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAdministrationRouteImport } from './routes/_authenticated/administration'
 import { Route as AuthenticatedKalkylRouteImport } from './routes/_authenticated/kalkyl'
 import { Route as AuthenticatedKalkylerRouteImport } from './routes/_authenticated/kalkyler'
 import { Route as AuthenticatedKontoRouteImport } from './routes/_authenticated/konto'
@@ -37,6 +38,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdministrationRoute =
+  AuthenticatedAdministrationRouteImport.update({
+    id: '/administration',
+    path: '/administration',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedKalkylRoute = AuthenticatedKalkylRouteImport.update({
   id: '/kalkyl',
   path: '/kalkyl',
@@ -62,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/administration': typeof AuthenticatedAdministrationRoute
   '/kalkyl': typeof AuthenticatedKalkylRoute
   '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
@@ -71,6 +79,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/administration': typeof AuthenticatedAdministrationRoute
   '/kalkyl': typeof AuthenticatedKalkylRoute
   '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
@@ -82,6 +91,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/administration': typeof AuthenticatedAdministrationRoute
   '/_authenticated/kalkyl': typeof AuthenticatedKalkylRoute
   '/_authenticated/kalkyler': typeof AuthenticatedKalkylerRoute
   '/_authenticated/konto': typeof AuthenticatedKontoRoute
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/administration'
     | '/kalkyl'
     | '/kalkyler'
     | '/konto'
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/administration'
     | '/kalkyl'
     | '/kalkyler'
     | '/konto'
@@ -112,6 +124,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/_authenticated/administration'
     | '/_authenticated/kalkyl'
     | '/_authenticated/kalkyler'
     | '/_authenticated/konto'
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/administration': {
+      id: '/_authenticated/administration'
+      path: '/administration'
+      fullPath: '/administration'
+      preLoaderRoute: typeof AuthenticatedAdministrationRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/kalkyl': {
       id: '/_authenticated/kalkyl'
       path: '/kalkyl'
@@ -188,6 +208,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAdministrationRoute: typeof AuthenticatedAdministrationRoute
   AuthenticatedKalkylRoute: typeof AuthenticatedKalkylRoute
   AuthenticatedKalkylerRoute: typeof AuthenticatedKalkylerRoute
   AuthenticatedKontoRoute: typeof AuthenticatedKontoRoute
@@ -195,6 +216,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAdministrationRoute: AuthenticatedAdministrationRoute,
   AuthenticatedKalkylRoute: AuthenticatedKalkylRoute,
   AuthenticatedKalkylerRoute: AuthenticatedKalkylerRoute,
   AuthenticatedKontoRoute: AuthenticatedKontoRoute,
