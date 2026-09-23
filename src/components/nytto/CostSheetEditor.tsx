@@ -392,6 +392,14 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             const annual = staffAnnualCost(row.salary, row.hours, count);
             const employmentRate = row.hours / FULL_TIME_HOURS;
             const monthlySalaryAtRate = row.salary * employmentRate;
+            const forvaltning = row.forvaltning ?? FORVALTNING_OVRIGT;
+            const isOvrigt = forvaltning === FORVALTNING_OVRIGT;
+            const positionList = personalData[forvaltning] ?? [];
+            const salaryLocked =
+              !isOvrigt &&
+              row.positionIndex !== null &&
+              row.positionIndex !== undefined &&
+              positionList.length > 0;
             return (
               <div key={i} className="rounded-xl border border-border p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -514,11 +522,16 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                   </Field>
                   <Field
                     label="Månadslön exkl. PO"
-                    hint={`Heltidslön: ${formatKr(row.salary || 0)}/mån per person`}
+                    hint={
+                      salaryLocked
+                        ? `Hämtad från befattningslistan: ${formatKr(row.salary || 0)}/mån per person`
+                        : `Heltidslön: ${formatKr(row.salary || 0)}/mån per person`
+                    }
                   >
                     <Input
                       type="number"
                       className="num"
+                      readOnly={salaryLocked}
                       value={
                         monthlySalaryAtRate
                           ? Math.round(monthlySalaryAtRate)
