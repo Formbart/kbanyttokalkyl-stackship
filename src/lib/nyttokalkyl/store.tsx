@@ -88,28 +88,30 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setSurvey = useCallback(
-    (index: number, survey: Survey | null) =>
-      setState((s) => {
-        const next = { ...s.surveys };
-        const nextResults = { ...s.surveyResults };
-        if (survey === null) {
-          delete next[index];
+  const setSurvey = useCallback((index: number, survey: Survey | null) => {
+    let removedResult = false;
+    setState((s) => {
+      const next = { ...s.surveys };
+      const nextResults = { ...s.surveyResults };
+      if (survey === null) {
+        delete next[index];
+        delete nextResults[index];
+      } else {
+        next[index] = survey;
+        const existing = nextResults[index];
+        if (existing && existing.signature !== surveySignature(survey)) {
           delete nextResults[index];
-        } else {
-          next[index] = survey;
-          const existing = nextResults[index];
-          if (existing && existing.signature !== surveySignature(survey)) {
-            delete nextResults[index];
-            toast.info(
-              "Enkätens frågor har ändrats — det importerade resultatet togs bort. Importera resultatfilen igen.",
-            );
-          }
+          removedResult = true;
         }
-        return { ...s, surveys: next, surveyResults: nextResults };
-      }),
-    [],
-  );
+      }
+      return { ...s, surveys: next, surveyResults: nextResults };
+    });
+    if (removedResult)
+      toast.info(
+        "Enkätens frågor har ändrats — det importerade resultatet togs bort. Importera resultatfilen igen.",
+      );
+  }, []);
+
 
   const setSurveyResult = useCallback(
     (index: number, result: SurveyResult | null) =>
