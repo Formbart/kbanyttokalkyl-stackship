@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { AiButton, EmptyState, Field, SectionCard } from "../shared";
 import { SurveyTab } from "../SurveyTab";
+import { SurveyResultsTab } from "../SurveyResultsTab";
+
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   QUALITATIVE_TYPES,
@@ -176,6 +178,10 @@ export function Step6() {
                 <TabsContent value="survey">
                   <SurveyTab index={i} benefit={b} />
                 </TabsContent>
+                <TabsContent value="results">
+                  <SurveyResultsTab index={i} />
+                </TabsContent>
+
               </Tabs>
             </SectionCard>
 
