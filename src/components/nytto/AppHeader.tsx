@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { initialState, type AppState } from "@/lib/nyttokalkyl/types";
+import { initialState } from "@/lib/nyttokalkyl/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { STEPS } from "./StepNav";
 import type { PrintStep } from "./PrintView";
