@@ -97,6 +97,8 @@ export function AppHeader({
   onCurrentIdChange,
   calculationTitle,
   onCalculationTitleChange,
+  hasUnsavedChanges,
+  onSaved,
 }: {
   printSelection: PrintStep[];
   onPrintSelectionChange: (steps: PrintStep[]) => void;
@@ -104,6 +106,8 @@ export function AppHeader({
   onCurrentIdChange: (id: string | null) => void;
   calculationTitle: string;
   onCalculationTitleChange: (title: string) => void;
+  hasUnsavedChanges: boolean;
+  onSaved: () => void;
 }) {
   const { state, setState, reset } = useNyttokalkyl();
   const navigate = useNavigate();
@@ -133,6 +137,7 @@ export function AppHeader({
       const id = await saveCalculation(state, name, currentId);
       onCurrentIdChange(id);
       onCalculationTitleChange(name);
+      onSaved();
       toast.success("Kalkylen är sparad.");
     } catch {
       toast.error("Kalkylen kunde inte sparas.");
@@ -307,11 +312,12 @@ export function AppHeader({
               </DialogContent>
             </Dialog>
             <Button
-              variant="outline"
+              variant={hasUnsavedChanges ? "destructive" : "outline"}
               size="sm"
               className="gap-2"
               disabled={savingBusy}
               onClick={() => void onSave()}
+              aria-label={hasUnsavedChanges ? "Spara osparade ändringar" : "Spara"}
             >
               <Save className="size-4" />
               <span className="hidden sm:inline">Spara</span>

@@ -7,3 +7,4 @@
 - [x] Kräv ett namn innan en ny kalkyl skapas från plusknappen.
 - [x] Ordna toppmenyn i logiska, enhetliga grupper.
 - [x] Ta bort plusknappen från Mina kalkyler.
+- [x] Markera Spara-knappen röd när en öppnad kalkyl har osparade ändringar.

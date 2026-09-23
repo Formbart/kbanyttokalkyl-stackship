@@ -38,6 +38,7 @@ function Inner() {
   const [assumptions, setAssumptions] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [calculationTitle, setCalculationTitle] = useState("");
+  const [savedStateSnapshot, setSavedStateSnapshot] = useState<string | null>(null);
   const [printSelection, setPrintSelection] = useState<PrintStep[]>(
     STEPS.map((item) => item.id),
   );
@@ -50,6 +51,7 @@ function Inner() {
     setAssumptions(null);
     setCurrentId(null);
     setCalculationTitle("");
+    setSavedStateSnapshot(null);
   }, [resetToken]);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ function Inner() {
       setState(pending.state);
       setCurrentId(pending.id);
       setCalculationTitle(pending.title);
+      setSavedStateSnapshot(JSON.stringify(pending.state));
       setStep(1);
       setShowStartChat(false);
       setAssumptions(null);
@@ -85,6 +88,12 @@ function Inner() {
           onCurrentIdChange={setCurrentId}
           calculationTitle={calculationTitle}
           onCalculationTitleChange={setCalculationTitle}
+          hasUnsavedChanges={
+            currentId !== null &&
+            savedStateSnapshot !== null &&
+            JSON.stringify(state) !== savedStateSnapshot
+          }
+          onSaved={() => setSavedStateSnapshot(JSON.stringify(state))}
         />
         {startChatActive ? (
           <StartChat
