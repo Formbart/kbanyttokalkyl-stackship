@@ -330,8 +330,7 @@ function AdminPage() {
                     onValueChange={(value) => void onRoleChange(user, value as AppRole)}
                   >
                     <SelectTrigger
-                      size="sm"
-                      className="w-[180px]"
+                      className="h-8 w-[180px] text-sm"
                       aria-label={`Roll för ${user.email}`}
                     >
                       <SelectValue />
