@@ -11,9 +11,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Copy,
+  Download,
+  Plus,
+  Printer,
+  RefreshCw,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AiButton, Field } from "./shared";
+import { buildFormsText, downloadSurveyDocx } from "@/lib/nyttokalkyl/formsExport";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
