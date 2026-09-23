@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -110,6 +111,8 @@ export function AppHeader({
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [newCalculationOpen, setNewCalculationOpen] = useState(false);
+  const [newCalculationName, setNewCalculationName] = useState("");
   const [savingBusy, setSavingBusy] = useState(false);
 
   useEffect(() => {
@@ -139,9 +142,19 @@ export function AppHeader({
   };
 
   const onNewCalculation = () => {
+    const name = newCalculationName.trim();
+    if (!name) {
+      toast.error("Skriv ett namn på kalkylen.");
+      return;
+    }
+    const nextState = initialState();
+    nextState.project.name = name;
     reset();
+    setState(nextState);
     onCurrentIdChange(null);
-    onCalculationTitleChange("");
+    onCalculationTitleChange(name);
+    setNewCalculationOpen(false);
+    setNewCalculationName("");
     void navigate({ to: "/kalkyl" });
     toast.success("Ny kalkyl är skapad.");
   };
@@ -219,32 +232,64 @@ export function AppHeader({
         </div>
 
         <div className="no-print mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-          <Dialog open={glossaryOpen} onOpenChange={setGlossaryOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Glosbok och hjälp">
-                <HelpCircle className="size-5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Glosbok</DialogTitle>
-                <DialogDescription>
-                  Begrepp som används i nyttokalkylen.
-                </DialogDescription>
-              </DialogHeader>
-              <dl className="space-y-4">
-                {GLOSSARY.map((g) => (
-                  <div key={g.term}>
-                    <dt className="text-sm font-semibold text-foreground">
-                      {g.term}
-                    </dt>
-                    <dd className="text-sm text-muted-foreground">{g.def}</dd>
+          <div className="flex flex-wrap items-center gap-2">
+            <Dialog open={newCalculationOpen} onOpenChange={setNewCalculationOpen}>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" className="gap-2" onClick={() => setNewCalculationName("")}>
+                  <Plus className="size-4" />
+                  <span className="hidden sm:inline">Ny kalkyl</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Skapa ny kalkyl</DialogTitle>
+                  <DialogDescription>Ge kalkylen ett namn innan du börjar.</DialogDescription>
+                </DialogHeader>
+                <form
+                  className="space-y-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    onNewCalculation();
+                  }}
+                >
+                  <Input
+                    autoFocus
+                    value={newCalculationName}
+                    onChange={(event) => setNewCalculationName(event.target.value)}
+                    placeholder="Namn på kalkylen"
+                    aria-label="Namn på kalkylen"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setNewCalculationOpen(false)}>
+                      Avbryt
+                    </Button>
+                    <Button type="submit" disabled={!newCalculationName.trim()}>
+                      Skapa kalkyl
+                    </Button>
                   </div>
-                ))}
-              </dl>
-            </DialogContent>
-          </Dialog>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={savingBusy}
+              onClick={() => void onSave()}
+            >
+              <Save className="size-4" />
+              <span className="hidden sm:inline">Spara</span>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/kalkyler">
+                <FolderOpen className="size-4" />
+                <span className="hidden sm:inline">Mina kalkyler</span>
+              </Link>
+            </Button>
+          </div>
 
+          <div className="hidden h-7 w-px bg-border sm:block" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-2">
           <Dialog open={printOpen} onOpenChange={setPrintOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -313,39 +358,6 @@ export function AppHeader({
               </div>
             </DialogContent>
           </Dialog>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            aria-label="Ny kalkyl"
-            onClick={onNewCalculation}
-          >
-            <Plus className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            disabled={savingBusy}
-            onClick={() => void onSave()}
-          >
-            <Save className="size-4" />
-            <span className="hidden sm:inline">Spara</span>
-          </Button>
-          <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/kalkyler">
-                <FolderOpen className="size-4" />
-                <span className="hidden sm:inline">Mina kalkyler</span>
-            </Link>
-          </Button>
-          {isAdmin && (
-            <Button asChild variant="ghost" size="sm" className="gap-2">
-              <Link to="/admin">
-                <Shield className="size-4" />
-                <span className="hidden lg:inline">Användare</span>
-              </Link>
-            </Button>
-          )}
           <Button variant="outline" size="sm" className="gap-2" onClick={() => void onExport()}>
 
             <Download className="size-4" />
@@ -371,7 +383,10 @@ export function AppHeader({
               e.target.value = "";
             }}
           />
+          </div>
 
+          <div className="hidden h-7 w-px bg-border sm:block" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2 text-negative">
@@ -400,7 +415,39 @@ export function AppHeader({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+            <Dialog open={glossaryOpen} onOpenChange={setGlossaryOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <HelpCircle className="size-4" />
+                  <span className="hidden sm:inline">Hjälp</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Glosbok</DialogTitle>
+                  <DialogDescription>Begrepp som används i nyttokalkylen.</DialogDescription>
+                </DialogHeader>
+                <dl className="space-y-4">
+                  {GLOSSARY.map((g) => (
+                    <div key={g.term}>
+                      <dt className="text-sm font-semibold text-foreground">{g.term}</dt>
+                      <dd className="text-sm text-muted-foreground">{g.def}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </DialogContent>
+            </Dialog>
+          </div>
+
           <div className="ml-auto flex min-w-0 items-center gap-2">
+            {isAdmin && (
+              <Button asChild variant="ghost" size="sm" className="gap-2">
+                <Link to="/admin">
+                  <Shield className="size-4" />
+                  <span className="hidden lg:inline">Användare</span>
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="ghost" size="sm" className="gap-2" aria-label="Mitt konto och lösenord">
               <Link to="/konto">
                 <Settings className="size-4" />
