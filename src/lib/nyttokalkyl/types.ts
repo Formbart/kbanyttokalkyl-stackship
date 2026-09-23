@@ -158,6 +158,8 @@ export interface AppState {
   reallocationInGraph: boolean;
   followUp: Record<number, FollowUp>;
   surveys: Record<number, Survey>;
+  surveyResults: Record<number, SurveyResult>;
+
 }
 
 
@@ -284,6 +286,8 @@ export function initialState(): AppState {
     reallocationInGraph: false,
     followUp: {},
     surveys: {},
+    surveyResults: {},
+
 
   };
 }
