@@ -6,15 +6,19 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import {
   initialState,
+  surveySignature,
   type AppState,
   type CostSheet,
   type FollowUp,
   type StaffChange,
   type StaffToday,
   type Survey,
+  type SurveyResult,
 } from "./types";
+
 
 interface StoreValue {
   state: AppState;
@@ -27,6 +31,8 @@ interface StoreValue {
   setQualRating: (index: number, current: number, expected: number) => void;
   setFollowUp: (index: number, patch: Partial<FollowUp>) => void;
   setSurvey: (index: number, survey: Survey | null) => void;
+  setSurveyResult: (index: number, result: SurveyResult | null) => void;
+
   reset: () => void;
   resetToken: number;
 }
