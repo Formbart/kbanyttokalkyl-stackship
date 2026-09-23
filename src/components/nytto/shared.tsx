@@ -78,7 +78,7 @@ export function Field({
   children,
   className,
 }: {
-  label: string;
+  label: ReactNode;
   hint?: string;
   children: ReactNode;
   className?: string;
