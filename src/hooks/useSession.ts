@@ -6,6 +6,7 @@ export function useSession() {
   const [user, setUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,14 +23,19 @@ export function useSession() {
           .eq("id", data.user.id)
           .maybeSingle();
         if (active) setFullName(profile?.full_name ?? null);
-        const { data: isAdminData } = await supabase.rpc("has_role", {
+        const { data: isAdminData } = await supabase.rpc("is_platform_admin", {
           _user_id: data.user.id,
-          _role: "admin",
         });
         if (active) setIsAdmin(isAdminData === true);
+        const { data: isSuperData } = await supabase.rpc("has_role", {
+          _user_id: data.user.id,
+          _role: "superadmin",
+        });
+        if (active) setIsSuperAdmin(isSuperData === true);
       } else {
         setFullName(null);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
       if (active) setLoading(false);
     };
@@ -46,5 +52,5 @@ export function useSession() {
     };
   }, []);
 
-  return { user, fullName, isAdmin, loading };
+  return { user, fullName, isAdmin, isSuperAdmin, loading };
 }
