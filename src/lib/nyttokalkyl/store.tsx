@@ -137,6 +137,8 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
       setQualRating,
       setFollowUp,
       setSurvey,
+      setSurveyResult,
+
       reset,
       resetToken,
     }),
@@ -148,6 +150,8 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
       setQualRating,
       setFollowUp,
       setSurvey,
+      setSurveyResult,
+
       reset,
     ],
   );
