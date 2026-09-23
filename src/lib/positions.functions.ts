@@ -27,35 +27,7 @@ async function assertAdmin(context: AuthContext) {
 export const listPositions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PersonalData> => {
-    const { data, error } = await (
-      context as unknown as {
-        supabase: {
-          from: (t: string) => {
-            select: (c: string) => {
-              order: (
-                c: string,
-                o: { ascending: boolean },
-              ) => {
-                order: (
-                  c: string,
-                  o: { ascending: boolean },
-                ) => Promise<{
-                  data:
-                    | {
-                        forvaltning: string;
-                        befattning: string;
-                        aid: string;
-                        manadslon: number | string;
-                      }[]
-                    | null;
-                  error: { message: string } | null;
-                }>;
-              };
-            };
-          };
-        };
-      }
-    ).supabase
+    const { data, error } = await context.supabase
       .from("positions")
       .select("forvaltning, befattning, aid, manadslon")
       .order("forvaltning", { ascending: true })
