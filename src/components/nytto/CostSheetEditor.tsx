@@ -408,31 +408,96 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-                  <Field label="Befattning">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <Field label="Förvaltning">
                     <Select
-                      value={row.role}
-                      onValueChange={(v) => {
-                        const salary = ROLE_SALARIES[v];
+                      value={row.forvaltning ?? FORVALTNING_OVRIGT}
+                      onValueChange={(v) =>
                         updateStaff(i, {
-                          role: v,
-                          ...(salary !== null && salary !== undefined
-                            ? { salary }
-                            : {}),
-                        });
-                      }}
+                          forvaltning: v,
+                          positionIndex: null,
+                          role: "Övrig personalresurs",
+                          salary: 0,
+                        })
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Välj befattning" />
+                        <SelectValue placeholder="Välj förvaltning" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ROLE_NAMES.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
+                        <SelectItem value={FORVALTNING_OVRIGT}>
+                          {FORVALTNING_OVRIGT}
+                        </SelectItem>
+                        {FORVALTNINGAR.map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {f}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </Field>
+                  <Field label="Befattning">
+                    {isOvrigt ? (
+                      <Select
+                        value={row.role}
+                        onValueChange={(v) => {
+                          const salary = ROLE_SALARIES[v];
+                          updateStaff(i, {
+                            role: v,
+                            positionIndex: null,
+                            ...(salary !== null && salary !== undefined
+                              ? { salary }
+                              : {}),
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Välj befattning" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLE_NAMES.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : positionList.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                        Inga befattningar importerade för denna förvaltning ännu
+                        — se Administration.
+                      </p>
+                    ) : (
+                      <Select
+                        value={
+                          row.positionIndex === null ||
+                          row.positionIndex === undefined
+                            ? ""
+                            : String(row.positionIndex)
+                        }
+                        onValueChange={(v) => {
+                          const idx = Number(v);
+                          const position = positionList[idx];
+                          if (!position) return;
+                          updateStaff(i, {
+                            positionIndex: idx,
+                            role: position.befattning,
+                            salary: position.manadslon,
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Välj befattning" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {positionList.map((p, idx) => (
+                            <SelectItem key={idx} value={String(idx)}>
+                              {positionLabel(p)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </Field>
                   <Field label="Antal personer" hint="Hur många som har rollen">
                     <Input
