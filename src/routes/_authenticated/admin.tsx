@@ -32,9 +32,13 @@ import {
   resetAppUserPassword,
   sendCredentials,
   setAppUserRole,
+  setAppUserForvaltning,
   type AppRole,
   type AppUserRow,
 } from "@/lib/admin.functions";
+import { FORVALTNINGAR } from "@/lib/nyttokalkyl/types";
+
+const NO_FORVALTNING = "__none__";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   user: "Användare",
@@ -205,6 +209,30 @@ function AdminPage() {
     }
   };
 
+  const onForvaltningChange = async (user: AppUserRow, value: string) => {
+    setBusy(true);
+    try {
+      await setAppUserForvaltning({
+        data: {
+          userId: user.id,
+          forvaltning: value === NO_FORVALTNING ? null : value,
+        },
+      });
+      await refresh();
+      toast.success(
+        value === NO_FORVALTNING
+          ? `${user.email} är inte längre kopplad till en förvaltning.`
+          : `${user.email} är kopplad till ${value}.`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Kunde inte spara förvaltning.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onDelete = async (user: AppUserRow) => {
     try {
       await deleteAppUser({ data: { userId: user.id } });
@@ -339,6 +367,28 @@ function AdminPage() {
                       {(Object.keys(ROLE_LABELS) as AppRole[]).map((role) => (
                         <SelectItem key={role} value={role}>
                           {ROLE_LABELS[role]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={user.forvaltning ?? NO_FORVALTNING}
+                    disabled={busy}
+                    onValueChange={(value) => void onForvaltningChange(user, value)}
+                  >
+                    <SelectTrigger
+                      className="h-8 w-[220px] text-sm"
+                      aria-label={`Förvaltning för ${user.email}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_FORVALTNING}>
+                        Ingen förvaltning
+                      </SelectItem>
+                      {FORVALTNINGAR.map((f) => (
+                        <SelectItem key={f} value={f}>
+                          {f}
                         </SelectItem>
                       ))}
                     </SelectContent>
