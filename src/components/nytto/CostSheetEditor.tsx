@@ -85,6 +85,7 @@ type Scenario = "today" | "change";
 
 export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const { state, setState } = useNyttokalkyl();
+  const { personalData } = usePositions();
   const key = scenario === "today" ? "costToday" : "costChange";
   const sheet = state[key];
   const startYear = state.project.startYear;
