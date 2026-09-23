@@ -214,7 +214,7 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <img
             src={kungsbackaVapen.url}
             alt="Kungsbacka kommuns vapen"
@@ -229,6 +229,42 @@ export function AppHeader({
               {activeTitle ? ` · ${activeTitle}` : ""}
             </p>
           </div>
+          <nav className="no-print ml-auto flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1" aria-label="Användarmeny">
+            {isAdmin && (
+              <Button asChild variant="ghost" size="sm" className="gap-2 px-2 lg:px-3">
+                <Link to="/admin">
+                  <Shield className="size-4" />
+                  <span className="hidden lg:inline">Användare</span>
+                </Link>
+              </Button>
+            )}
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="gap-2 px-2 lg:px-3"
+              aria-label="Mitt konto och lösenord"
+            >
+              <Link to="/konto">
+                <Settings className="size-4" />
+                <span className="hidden lg:inline">Mitt konto</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 px-2 lg:px-3"
+              onClick={() => void onSignOut()}
+            >
+              <LogOut className="size-4" />
+              <span className="hidden lg:inline">Logga ut</span>
+            </Button>
+            {displayName && (
+              <span className="max-w-20 truncate pl-1 text-xs font-medium text-foreground sm:max-w-40 sm:text-sm xl:max-w-56">
+                {displayName}
+              </span>
+            )}
+          </nav>
         </div>
 
         <div className="no-print mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
@@ -439,36 +475,6 @@ export function AppHeader({
             </Dialog>
           </div>
 
-          <div className="ml-auto flex min-w-0 items-center gap-2">
-            {isAdmin && (
-              <Button asChild variant="ghost" size="sm" className="gap-2">
-                <Link to="/admin">
-                  <Shield className="size-4" />
-                  <span className="hidden lg:inline">Användare</span>
-                </Link>
-              </Button>
-            )}
-            <Button asChild variant="ghost" size="sm" className="gap-2" aria-label="Mitt konto och lösenord">
-              <Link to="/konto">
-                <Settings className="size-4" />
-                <span className="hidden lg:inline">Mitt konto</span>
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={() => void onSignOut()}
-            >
-              <LogOut className="size-4" />
-              <span className="hidden lg:inline">Logga ut</span>
-            </Button>
-            {displayName && (
-              <span className="hidden max-w-56 truncate text-sm font-medium text-foreground xl:block">
-                {displayName}
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </header>
