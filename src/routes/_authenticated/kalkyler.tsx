@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
@@ -118,11 +118,6 @@ function SavedCalculationsPage() {
     }
   };
 
-  const startNew = () => {
-    window.sessionStorage.removeItem(PENDING_CALCULATION_STORAGE_KEY);
-    void navigate({ to: "/kalkyl" });
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/95">
@@ -131,17 +126,12 @@ function SavedCalculationsPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-brand">Nyttokalkyl</p>
             <h1 className="font-display text-2xl font-semibold text-foreground">Mina kalkyler</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="gap-2">
-              <Link to="/kalkyl">
-                <ArrowLeft className="size-4" />
-                Till kalkylen
-              </Link>
-            </Button>
-            <Button type="button" size="icon" aria-label="Ny kalkyl" onClick={startNew}>
-              <Plus className="size-4" />
-            </Button>
-          </div>
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/kalkyl">
+              <ArrowLeft className="size-4" />
+              Till kalkylen
+            </Link>
+          </Button>
         </div>
       </header>
 
@@ -157,7 +147,7 @@ function SavedCalculationsPage() {
               Inga sparade kalkyler ännu
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Skapa en ny kalkyl med plusknappen och spara den från menyn.
+              Skapa en ny kalkyl med plusknappen i kalkylens toppmeny.
             </p>
           </div>
         ) : (
