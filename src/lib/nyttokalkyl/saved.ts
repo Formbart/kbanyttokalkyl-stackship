@@ -68,6 +68,8 @@ export async function loadCalculation(id: string): Promise<{ title: string; stat
       reallocationInGraph: parsed.reallocationInGraph ?? false,
       followUp: parsed.followUp ?? {},
       surveys: parsed.surveys ?? {},
+      surveyResults: parsed.surveyResults ?? {},
+
     },
   };
 }
