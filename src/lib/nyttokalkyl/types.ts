@@ -102,6 +102,46 @@ export const SURVEY_QUESTION_TYPE_LABELS: Record<SurveyQuestionType, string> = {
   fritext: "Fritext",
 };
 
+export type QuestionResult =
+  | {
+      kind: "scale";
+      qi: number;
+      header: string | null;
+      distribution: Record<string, number>;
+      average: number | null;
+      responses: number;
+    }
+  | {
+      kind: "choice";
+      qi: number;
+      header: string | null;
+      counts: { option: string; count: number }[];
+      responses: number;
+    }
+  | {
+      kind: "open";
+      qi: number;
+      header: string | null;
+      answers: string[];
+      responses: number;
+    };
+
+export interface SurveyResult {
+  fileName: string;
+  importedAt: string;
+  responseCount: number;
+  /** Signatur över enkätens frågor vid importen — används för att upptäcka ändringar. */
+  signature: string;
+  perQuestion: QuestionResult[];
+}
+
+export function surveySignature(survey: Survey): string {
+  return survey.questions
+    .map((q) => `${q.questionType}::${q.question.trim()}`)
+    .join("||");
+}
+
+
 export interface AppState {
   project: {
     name: string;
