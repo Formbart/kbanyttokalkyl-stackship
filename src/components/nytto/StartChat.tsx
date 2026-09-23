@@ -104,6 +104,8 @@ export function StartChat({
 
     setState({
       surveys: {},
+      surveyResults: {},
+
 
       project: {
         ...base.project,

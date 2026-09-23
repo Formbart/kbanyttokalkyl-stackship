@@ -192,6 +192,8 @@ export function AppHeader({
         reallocationInGraph: parsed.reallocationInGraph ?? false,
         followUp: parsed.followUp ?? {},
         surveys: parsed.surveys ?? {},
+        surveyResults: parsed.surveyResults ?? {},
+
 
       });
       onCurrentIdChange(null);

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { AiButton, EmptyState, Field, SectionCard } from "../shared";
 import { SurveyTab } from "../SurveyTab";
+import { SurveyResultsTab } from "../SurveyResultsTab";
+
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   QUALITATIVE_TYPES,
@@ -103,7 +105,16 @@ export function Step6() {
                       </span>
                     ) : null}
                   </TabsTrigger>
+                  <TabsTrigger value="results" className="gap-1.5">
+                    Enkätresultat
+                    {state.surveyResults[i] ? (
+                      <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-primary-foreground">
+                        {state.surveyResults[i]!.responseCount}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
                 </TabsList>
+
                 <TabsContent value="plan">
               <div className="grid gap-4 md:grid-cols-2">
 
@@ -167,6 +178,10 @@ export function Step6() {
                 <TabsContent value="survey">
                   <SurveyTab index={i} benefit={b} />
                 </TabsContent>
+                <TabsContent value="results">
+                  <SurveyResultsTab index={i} />
+                </TabsContent>
+
               </Tabs>
             </SectionCard>
 
