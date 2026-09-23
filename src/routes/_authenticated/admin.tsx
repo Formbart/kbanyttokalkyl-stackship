@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSession } from "@/hooks/useSession";
 import {
   createAppUser,
@@ -24,8 +31,22 @@ import {
   listAppUsers,
   resetAppUserPassword,
   sendCredentials,
+  setAppUserRole,
+  type AppRole,
   type AppUserRow,
 } from "@/lib/admin.functions";
+
+const ROLE_LABELS: Record<AppRole, string> = {
+  user: "Användare",
+  admin: "Administratör",
+  superadmin: "Superadministratör",
+};
+
+function currentRole(roles: AppRole[]): AppRole {
+  if (roles.includes("superadmin")) return "superadmin";
+  if (roles.includes("admin")) return "admin";
+  return "user";
+}
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -53,7 +74,7 @@ interface NewCredentials {
 }
 
 function AdminPage() {
-  const { isSuperAdmin: isAdmin, loading } = useSession();
+  const { user: sessionUser, isSuperAdmin: isAdmin, loading } = useSession();
   const [users, setUsers] = useState<AppUserRow[]>([]);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -166,6 +187,19 @@ function AdminPage() {
       toast.success(`Nya kontouppgifter skickades till ${user.email}.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Kunde inte skicka kontouppgifterna.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onRoleChange = async (user: AppUserRow, role: AppRole) => {
+    setBusy(true);
+    try {
+      await setAppUserRole({ data: { userId: user.id, role } });
+      await refresh();
+      toast.success(`${user.email} har nu rollen ${ROLE_LABELS[role]}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kunde inte ändra rollen.");
     } finally {
       setBusy(false);
     }
@@ -286,15 +320,30 @@ function AdminPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
                     {user.fullName || user.email}
-                    {user.isAdmin && (
-                      <span className="ml-2 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">
-                        Administratör
-                      </span>
-                    )}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={currentRole(user.roles)}
+                    disabled={busy || user.id === sessionUser?.id}
+                    onValueChange={(value) => void onRoleChange(user, value as AppRole)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="w-[180px]"
+                      aria-label={`Roll för ${user.email}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(ROLE_LABELS) as AppRole[]).map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     size="sm"
                     variant="outline"
