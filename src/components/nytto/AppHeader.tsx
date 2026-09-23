@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,6 @@ import {
   Shield,
   SlidersHorizontal,
   Trash2,
-  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
@@ -113,7 +112,6 @@ export function AppHeader({
   const { state, setState, reset } = useNyttokalkyl();
   const navigate = useNavigate();
   const { user, fullName, isAdmin, isSuperAdmin } = useSession();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [newCalculationOpen, setNewCalculationOpen] = useState(false);
@@ -177,31 +175,6 @@ export function AppHeader({
       toast.success("Kalkylen exporterades till Excel med sex flikar.");
     } catch {
       toast.error("Excel-filen kunde inte skapas. Försök igen.");
-    }
-  };
-
-  const onImportFile = async (file: File) => {
-    try {
-      const parsed = JSON.parse(await file.text()) as Partial<AppState>;
-      const base = initialState();
-      const importedName = parsed.project?.name?.trim() ?? "";
-      setState({
-        project: { ...base.project, ...parsed.project },
-        costToday: { ...base.costToday, ...parsed.costToday },
-        costChange: { ...base.costChange, ...parsed.costChange },
-        qualRatings: parsed.qualRatings ?? {},
-        reallocationInGraph: parsed.reallocationInGraph ?? false,
-        followUp: parsed.followUp ?? {},
-        surveys: parsed.surveys ?? {},
-        surveyResults: parsed.surveyResults ?? {},
-
-
-      });
-      onCurrentIdChange(null);
-      onCalculationTitleChange(importedName);
-      toast.success("Kalkylen importerades.");
-    } catch {
-      toast.error("Kunde inte läsa filen. Är det en giltig JSON-export?");
     }
   };
 
@@ -418,26 +391,6 @@ export function AppHeader({
             <Download className="size-4" />
             <span className="hidden sm:inline">Exportera Excel</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload className="size-4" />
-            <span className="hidden sm:inline">Importera</span>
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void onImportFile(file);
-              e.target.value = "";
-            }}
-          />
           </div>
 
           <div className="hidden h-7 w-px bg-border sm:block" aria-hidden="true" />
