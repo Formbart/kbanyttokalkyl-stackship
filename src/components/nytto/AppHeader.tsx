@@ -31,6 +31,7 @@ import {
   Save,
   Settings,
   Shield,
+  SlidersHorizontal,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -111,7 +112,7 @@ export function AppHeader({
 }) {
   const { state, setState, reset } = useNyttokalkyl();
   const navigate = useNavigate();
-  const { user, fullName, isAdmin } = useSession();
+  const { user, fullName, isAdmin, isSuperAdmin } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -238,12 +239,22 @@ export function AppHeader({
           </div>
           <nav className="no-print ml-auto flex min-w-0 shrink-0 items-center gap-0.5 sm:gap-1" aria-label="Användarmeny">
             {isAdmin && (
-              <Button asChild variant="ghost" size="sm" className="gap-2 px-2 lg:px-3">
-                <Link to="/admin">
-                  <Shield className="size-4" />
-                  <span className="hidden lg:inline">Användare</span>
-                </Link>
-              </Button>
+              <>
+                <Button asChild variant="ghost" size="sm" className="gap-2 px-2 lg:px-3">
+                  <Link to="/administration">
+                    <SlidersHorizontal className="size-4" />
+                    <span className="hidden lg:inline">Administration</span>
+                  </Link>
+                </Button>
+                {isSuperAdmin && (
+                  <Button asChild variant="ghost" size="sm" className="gap-2 px-2 lg:px-3">
+                    <Link to="/admin">
+                      <Shield className="size-4" />
+                      <span className="hidden lg:inline">Användare</span>
+                    </Link>
+                  </Button>
+                )}
+              </>
             )}
             <Button
               asChild
