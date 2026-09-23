@@ -38,13 +38,13 @@ export const FORVALTNING_OVRIGT = "Övrigt (ej förvaltningsbundet)";
 
 export const FORVALTNINGAR = [
   "Bygg- och miljöförvaltningen",
-  "Förvaltningen för Förskola & Grundskola",
-  "Förvaltningen för Gymnasium & Arbetsmarknad",
-  "Förvaltningen för Individ & Familjeomsorg",
-  "Förvaltningen för Kultur & Fritid",
-  "Förvaltningen för Service",
-  "Förvaltningen för Teknik",
-  "Förvaltningen för Vård & Omsorg",
+  "Förskola & Grundskola",
+  "Gymnasium & Arbetsmarknad",
+  "Individ & Familjeomsorg",
+  "Kultur & Fritid",
+  "Service",
+  "Teknik",
+  "Vård & Omsorg",
   "Kommunstyrelsens förvaltning",
 ];
 
