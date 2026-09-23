@@ -111,6 +111,7 @@ export const setAppUserRole = createServerFn({ method: "POST" })
 
 /** Superadministratör kopplar ett konto till en förvaltning (eller ingen). */
 export const setAppUserForvaltning = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { userId: string; forvaltning: string | null }) => {
     const value = (data.forvaltning ?? "").trim();
     if (value !== "" && !FORVALTNINGAR.includes(value)) {
@@ -118,7 +119,6 @@ export const setAppUserForvaltning = createServerFn({ method: "POST" })
     }
     return { userId: data.userId, forvaltning: value === "" ? null : value };
   })
-  .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
