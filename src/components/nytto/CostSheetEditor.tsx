@@ -44,6 +44,39 @@ import {
 } from "@/lib/nyttokalkyl/types";
 import { computeCostSheet, formatKr, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 
+function CostLabel() {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      Beräknad kostnad/år
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Hur kostnaden beräknas"
+            className="no-print inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 text-sm leading-relaxed">
+          <p className="font-semibold">Så beräknas kostnaden</p>
+          <p className="mt-1.5">
+            Månadslön × 12 × 1,4024 (PO-pålägg) × tjänstgöringsgrad × antal
+            personer.
+          </p>
+          <p className="mt-1.5">
+            Exempel: 32 000 kr/mån, 100 %, 1 person = 538 521 kr/år.
+          </p>
+          <p className="mt-1.5">
+            Deltid räknas som andel av 1 760 timmar, så 50 % ger halva
+            beloppet.
+          </p>
+        </PopoverContent>
+      </Popover>
+    </span>
+  );
+}
+
 type Scenario = "today" | "change";
 
 export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
