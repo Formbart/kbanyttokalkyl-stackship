@@ -86,12 +86,36 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
     (index: number, survey: Survey | null) =>
       setState((s) => {
         const next = { ...s.surveys };
-        if (survey === null) delete next[index];
-        else next[index] = survey;
-        return { ...s, surveys: next };
+        const nextResults = { ...s.surveyResults };
+        if (survey === null) {
+          delete next[index];
+          delete nextResults[index];
+        } else {
+          next[index] = survey;
+          const existing = nextResults[index];
+          if (existing && existing.signature !== surveySignature(survey)) {
+            delete nextResults[index];
+            toast.info(
+              "Enkätens frågor har ändrats — det importerade resultatet togs bort. Importera resultatfilen igen.",
+            );
+          }
+        }
+        return { ...s, surveys: next, surveyResults: nextResults };
       }),
     [],
   );
+
+  const setSurveyResult = useCallback(
+    (index: number, result: SurveyResult | null) =>
+      setState((s) => {
+        const next = { ...s.surveyResults };
+        if (result === null) delete next[index];
+        else next[index] = result;
+        return { ...s, surveyResults: next };
+      }),
+    [],
+  );
+
 
   const reset = useCallback(() => {
     setState(initialState());
