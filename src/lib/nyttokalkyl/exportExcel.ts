@@ -116,6 +116,7 @@ function addCostSheet(
   subtitle: string,
   sheet: CostSheet<StaffToday | StaffChange>,
   startYear: number,
+  nYears: number,
 ) {
   const ws = workbook.addWorksheet(name);
   title(ws, name, subtitle, 10);
@@ -177,7 +178,7 @@ function addCostSheet(
   section(ws, summarySectionRow, "Kostnader per år", 10);
   const summaryHeader = ws.addRow(["År", "Engångskostnader (kr)", "Löpande kostnader (kr)", "Personalkostnader (kr)", "Total kostnad (kr)", "Nuvärde (kr)"]);
   header(summaryHeader);
-  const calc = computeCostSheet(sheet, startYear);
+  const calc = computeCostSheet(sheet, startYear, nYears);
   calc.perYear.forEach((calculated, index) => {
     const excelRow = ws.rowCount + 1;
     const year = startYear + index;
@@ -245,8 +246,8 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   });
   finish(basic, [24, 35, 35, 24, 26, 18, 28, 24]);
 
-  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear);
-  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear);
+  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear, calcYears(state));
+  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear, calcYears(state));
 
   const qualitative = workbook.addWorksheet("4 Kvalitativa nyttor");
   title(qualitative, "4 Kvalitativa nyttor", "Bedömning av kvalitativa nyttor och miljönyttor", 8);
@@ -273,8 +274,8 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   const result = workbook.addWorksheet("5 Resultat");
   title(result, "5 Resultat", "Sammanställning av kostnader, nettonytta och omfördelningsnytta", 8);
   section(result, 4, "Nyckeltal", 8);
-  const todayCalc = computeCostSheet(state.costToday, state.project.startYear);
-  const changeCalc = computeCostSheet(state.costChange, state.project.startYear);
+  const todayCalc = computeCostSheet(state.costToday, state.project.startYear, calcYears(state));
+  const changeCalc = computeCostSheet(state.costChange, state.project.startYear, calcYears(state));
   const net = computeNetBenefit(state, todayCalc, changeCalc, state.reallocationInGraph);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
   result.addRow(["Kostnad idag, nuvärde (kr)", { formula: `'${today.worksheet.name}'!${today.totalCell}`, result: todayCalc.npvSum }]);

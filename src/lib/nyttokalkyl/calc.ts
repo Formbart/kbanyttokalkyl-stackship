@@ -1,7 +1,9 @@
 import {
   DISCOUNT_RATE,
   FULL_TIME_HOURS,
-  N_YEARS,
+  DEFAULT_CALCULATION_YEARS,
+  MAX_CALCULATION_YEARS,
+  MIN_CALCULATION_YEARS,
   PO_FACTOR,
   QUALITATIVE_TYPES,
   type AppState,
@@ -11,8 +13,27 @@ import {
   type StaffToday,
 } from "./types";
 
-export function years(startYear: number): number[] {
-  return Array.from({ length: N_YEARS }, (_, i) => startYear + i);
+export function clampYears(n: number | null | undefined): number {
+  const v = Math.round(Number(n) || DEFAULT_CALCULATION_YEARS);
+  return Math.min(MAX_CALCULATION_YEARS, Math.max(MIN_CALCULATION_YEARS, v));
+}
+
+export function calcYears(state: AppState): number {
+  return clampYears(state.project.calculationYears);
+}
+
+export function years(startYear: number, n: number = DEFAULT_CALCULATION_YEARS): number[] {
+  return Array.from({ length: clampYears(n) }, (_, i) => startYear + i);
+}
+
+/** Antal kostnadsposter vars startår ligger efter kalkylperiodens sista år. */
+export function itemsOutsidePeriod(
+  sheet: CostSheet<StaffToday | StaffChange>,
+  startYear: number,
+  n: number,
+): number {
+  const last = startYear + clampYears(n) - 1;
+  return sheet.items.filter((it) => it.startYear !== null && it.startYear > last).length;
 }
 
 export function staffAnnualCost(
@@ -46,12 +67,14 @@ export interface SheetCalc {
 export function computeCostSheet(
   sheet: CostSheet<StaffToday | StaffChange>,
   startYear: number,
+  calculationYears: number = DEFAULT_CALCULATION_YEARS,
 ): SheetCalc {
+  const n = clampYears(calculationYears);
   const staffBase = sheet.staff.reduce(
     (sum, s) => sum + staffAnnualCost(s.salary, s.hours, s.count ?? 1),
     0,
   );
-  const perYear: YearRow[] = years(startYear).map((year, i) => {
+  const perYear: YearRow[] = years(startYear, n).map((year, i) => {
     const growthFactor = Math.pow(1 + (sheet.growth || 0) / 100, i);
     const oneTime = sheet.items
       .filter((it) => it.type === "Engångskostnad" && it.startYear === year)
@@ -74,7 +97,7 @@ export function computeCostSheet(
   const npvSum = perYear.reduce((s, r) => s + r.npv, 0);
   const marginSum = sheet.items.reduce((s, it) => {
     const base = ((it.margin || 0) / 100) * (it.costPerYear || 0);
-    return s + (it.type === "Engångskostnad" ? base : base * N_YEARS);
+    return s + (it.type === "Engångskostnad" ? base : base * n);
   }, 0);
 
   return {
@@ -199,7 +222,7 @@ export function computeNetBenefit(
   );
   let cumulative = 0;
   let breakEvenYear: number | null = null;
-  const perYear = years(state.project.startYear).map((year, i) => {
+  const perYear = years(state.project.startYear, calcYears(state)).map((year, i) => {
     const discount = Math.pow(1 + DISCOUNT_RATE, -i);
     const reallocNPV = includeRealloc
       ? valueFreed *

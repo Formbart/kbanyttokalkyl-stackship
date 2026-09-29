@@ -26,6 +26,8 @@ import {
 } from "../shared";
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
+  calcYears,
+  clampYears,
   computeCostSheet,
   computeNetBenefit,
   computeQualitative,
@@ -54,8 +56,8 @@ export function Step5() {
     report?: string | undefined;
   }>({});
 
-  const todayCalc = computeCostSheet(state.costToday, state.project.startYear);
-  const changeCalc = computeCostSheet(state.costChange, state.project.startYear);
+  const todayCalc = computeCostSheet(state.costToday, state.project.startYear, calcYears(state));
+  const changeCalc = computeCostSheet(state.costChange, state.project.startYear, calcYears(state));
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
   const net = computeNetBenefit(
     state,
