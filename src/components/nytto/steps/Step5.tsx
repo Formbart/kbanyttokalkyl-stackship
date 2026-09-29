@@ -12,7 +12,8 @@ import {
   XAxis,
   YAxis,
   Area,
-  AreaChart,
+  Cell,
+  ComposedChart,
 } from "recharts";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ import {
   computeNetBenefit,
   computeQualitative,
   computeReallocation,
+  computeReallocationOverPeriod,
   formatKr,
   formatNumber,
   hasAnyData,
@@ -112,10 +114,18 @@ export function Step5() {
 
   const cumulativeData = net.perYear.map((r) => ({
     year: String(r.year),
+    arlig: Math.round(r.net),
     ackumulerat: Math.round(r.cumulative),
     positiv: r.cumulative > 0 ? Math.round(r.cumulative) : 0,
     negativ: r.cumulative < 0 ? Math.round(r.cumulative) : 0,
   }));
+  const reallocPeriod = computeReallocationOverPeriod(
+    realloc.hoursFreed,
+    realloc.valueFreed,
+    state.costChange.growth,
+    state.project.startYear,
+    calcYears(state),
+  );
 
   const internal = qual.filter((q) => q.benefit.gynnas === "Intern nytta").length;
   const external = qual.filter((q) => q.benefit.gynnas === "Extern nytta").length;
@@ -300,16 +310,16 @@ export function Step5() {
       </SectionCard>
 
       <SectionCard
-        title="Ackumulerad nettovinst per år"
-        description={`Break-even: ${net.breakEvenYear}`}
+        title="Nettonytta per år"
+        description={`Staplar: årets förändring · Linje: ackumulerat · Break-even: ${net.breakEvenYear}`}
       >
         <p className="mb-4 text-sm text-muted-foreground">
           Kalkylperiod: {state.project.startYear}–{state.project.startYear + calcYears(state) - 1}
-          {" "}(antal år ändras på steg 2 och 3)
+          {" "}(antal år ändras på steg 2 · Kostnad idag)
         </p>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={cumulativeData} margin={{ left: 8, right: 8, top: 8 }}>
+            <ComposedChart data={cumulativeData} margin={{ left: 8, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="year" tickLine={false} axisLine={false} />
               <YAxis
@@ -319,9 +329,22 @@ export function Step5() {
                 width={70}
               />
               <Tooltip
-                formatter={(v: number) => formatKr(v)}
-                contentStyle={{ borderRadius: 12, borderColor: "var(--color-border)" }}
+                content={({ active, payload, label }) => {
+                  const row = payload?.[0]?.payload as
+                    | { arlig: number; ackumulerat: number }
+                    | undefined;
+                  if (!active || !row) return null;
+                  const sign = (v: number) => (v > 0 ? "+" : "") + formatKr(v);
+                  return (
+                    <div className="rounded-xl border border-border bg-card px-3 py-2 text-xs shadow-sm">
+                      <p className="font-semibold text-foreground">{label}</p>
+                      <p>Årets förändring: {sign(row.arlig)}</p>
+                      <p>Ackumulerat: {sign(row.ackumulerat)}</p>
+                    </div>
+                  );
+                }}
               />
+              <Legend />
               <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
               {net.breakEvenYear !== "Aldrig" && (
                 <ReferenceLine
@@ -335,27 +358,42 @@ export function Step5() {
                 dataKey="positiv"
                 stroke="none"
                 fill="var(--color-positive)"
-                fillOpacity={0.25}
+                fillOpacity={0.2}
                 isAnimationActive={false}
+                legendType="none"
               />
               <Area
                 dataKey="negativ"
                 stroke="none"
                 fill="var(--color-negative)"
-                fillOpacity={0.2}
+                fillOpacity={0.15}
                 isAnimationActive={false}
+                legendType="none"
               />
+              <Bar dataKey="arlig" name="Årlig förändring" barSize={28} isAnimationActive={false}>
+                {cumulativeData.map((d) => (
+                  <Cell
+                    key={d.year}
+                    fill={d.arlig >= 0 ? "var(--color-positive)" : "var(--color-negative)"}
+                  />
+                ))}
+              </Bar>
               <Line
                 dataKey="ackumulerat"
-                name="Ackumulerad nettovinst"
+                name="Ackumulerat"
                 stroke="var(--color-brand)"
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
                 type="monotone"
               />
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {net.breakEvenYear === "Aldrig" && net.perYear.length > 0 && (
+          <p className="mt-2 text-sm font-medium text-negative">
+            Break-even nås aldrig inom den valda perioden.
+          </p>
+        )}
       </SectionCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -373,6 +411,16 @@ export function Step5() {
               label="Värde av frigjord tid/år"
               value={formatKr(realloc.valueFreed)}
               tone={realloc.valueFreed >= 0 ? "positive" : "negative"}
+            />
+            <KpiCard
+              label={`Timmar under hela perioden (${calcYears(state)} år)`}
+              value={`${formatNumber(reallocPeriod.totalHoursFreed)} h`}
+              tone={reallocPeriod.totalHoursFreed >= 0 ? "positive" : "negative"}
+            />
+            <KpiCard
+              label="Totalt nuvärde under perioden"
+              value={formatKr(reallocPeriod.totalValueFreedNPV)}
+              tone={reallocPeriod.totalValueFreedNPV >= 0 ? "positive" : "negative"}
             />
           </div>
           {realloc.hoursFreed === 0 && realloc.valueFreed === 0 && (

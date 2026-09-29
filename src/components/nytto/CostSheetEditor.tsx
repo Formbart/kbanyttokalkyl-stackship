@@ -689,22 +689,52 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         title={`Beräknad kostnad ${startYear}–${startYear + nYears - 1}`}
         description="Nuvärde beräknas med 3 % diskonteringsränta från kalkylperiodens första år."
       >
-        <div className="no-print mb-4 flex flex-wrap items-center gap-3">
-          <label htmlFor={`calc-years-${scenario}`} className="text-sm font-medium text-foreground">
-            Antal år
-          </label>
-          <CalcYearsInput
-            id={`calc-years-${scenario}`}
-            value={nYears}
-            onCommit={(n) =>
-              setState((s) => ({ ...s, project: { ...s.project, calculationYears: n } }))
-            }
-          />
-          <span className="text-xs text-muted-foreground">
-            Gäller hela kalkylen (steg 2, 3 och 5)
-          </span>
+        {scenario === "today" ? (
+          <div className="no-print mb-4 flex flex-wrap items-center gap-3">
+            <label htmlFor="calc-years-today" className="text-sm font-medium text-foreground">
+              Antal år
+            </label>
+            <CalcYearsInput
+              id="calc-years-today"
+              value={nYears}
+              onCommit={(n) =>
+                setState((s) => ({ ...s, project: { ...s.project, calculationYears: n } }))
+              }
+            />
+            <span className="text-xs text-muted-foreground">
+              Gäller hela kalkylen (steg 2, 3 och 5)
+            </span>
+          </div>
+        ) : (
+          <p className="no-print mb-4 text-sm text-muted-foreground">
+            Antal år: <strong className="text-foreground">{nYears}</strong> · Antalet år
+            ändras på steg 2 · Kostnad idag
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="pb-2 pr-3">År</th>
+                <th className="pb-2 pr-3">Engångskostnad</th>
+                <th className="pb-2 pr-3">Löpande + personal</th>
+                <th className="pb-2 pr-3">Total</th>
+                <th className="pb-2">Nuvärde</th>
+              </tr>
+            </thead>
+            <tbody className="num">
+              {calc.perYear.map((r) => (
+                <tr key={r.year} className="border-t border-border">
+                  <td className="py-2 pr-3 font-medium">{r.year}</td>
+                  <td className="py-2 pr-3">{formatKr(r.oneTime)}</td>
+                  <td className="py-2 pr-3">{formatKr(r.recurring + r.staffCost)}</td>
+                  <td className="py-2 pr-3">{formatKr(r.total)}</td>
+                  <td className="py-2 font-semibold">{formatKr(r.npv)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-...
         <p className="mt-2 text-xs text-muted-foreground">
           Kalkylperiod: {years(startYear, nYears).join(", ")}
         </p>
