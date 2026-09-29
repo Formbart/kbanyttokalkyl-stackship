@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Info } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import {
   Select,
@@ -23,7 +25,6 @@ export function Step4() {
   const { state, setState, setQualRating } = useNyttokalkyl();
   const rows = computeQualitative(state);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
-  const [rationales, setRationales] = useState<Record<number, string>>({});
 
   const setRank = (index: number, rank: Rank) =>
     setState((s) => ({
@@ -57,14 +58,18 @@ export function Step4() {
     }
     const d = res.data;
     if (!d) return;
-    setQualRating(
-      index,
-      Math.min(5, Math.max(1, Number(d.current) || 3)),
-      Math.min(5, Math.max(1, Number(d.expected) || 3)),
-    );
+    const current = Math.min(5, Math.max(1, Number(d.current) || 3));
+    const expected = Math.min(5, Math.max(1, Number(d.expected) || 3));
+    const rationale = typeof d.rationale === "string" ? d.rationale.trim() : "";
+    // New AI assessment replaces the previous rationale (or clears it).
+    setState((s) => ({
+      ...s,
+      qualRatings: {
+        ...s.qualRatings,
+        [index]: rationale ? { current, expected, rationale } : { current, expected },
+      },
+    }));
     if (d.rank_suggestion) setRank(index, d.rank_suggestion);
-    if (d.rationale)
-      setRationales((r) => ({ ...r, [index]: d.rationale as string }));
     toast.success("AI-bedömning ifylld — justera gärna.");
   };
 
@@ -130,7 +135,26 @@ export function Step4() {
               </div>
               <div>
                 <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-medium">Förväntat läge</span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    Förväntat läge
+                    {rating.rationale && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Visa AI:ns motivering"
+                            className="text-muted-foreground hover:text-brand-dark print:hidden"
+                          >
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 text-sm">
+                          <p className="mb-1 font-semibold">AI:ns motivering</p>
+                          <p className="text-muted-foreground">{rating.rationale}</p>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </span>
                   <span className="num text-brand-dark">{rating.expected}</span>
                 </div>
                 <Slider
@@ -181,11 +205,6 @@ export function Step4() {
               </div>
             </div>
 
-            {rationales[row.index] && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                AI: {rationales[row.index]}
-              </p>
-            )}
           </SectionCard>
         );
       })}

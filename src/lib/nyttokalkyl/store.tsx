@@ -28,7 +28,7 @@ interface StoreValue {
     key: K,
     patch: Partial<AppState[K]>,
   ) => void;
-  setQualRating: (index: number, current: number, expected: number) => void;
+  setQualRating: (index: number, current: number, expected: number, rationale?: string) => void;
   setFollowUp: (index: number, patch: Partial<FollowUp>) => void;
   setSurvey: (index: number, survey: Survey | null) => void;
   setSurveyResult: (index: number, result: SurveyResult | null) => void;
@@ -57,11 +57,17 @@ export function NyttokalkylProvider({ children }: { children: ReactNode }) {
   );
 
   const setQualRating = useCallback(
-    (index: number, current: number, expected: number) =>
-      setState((s) => ({
-        ...s,
-        qualRatings: { ...s.qualRatings, [index]: { current, expected } },
-      })),
+    (index: number, current: number, expected: number, rationale?: string) =>
+      setState((s) => {
+        const keep = rationale ?? s.qualRatings[index]?.rationale;
+        return {
+          ...s,
+          qualRatings: {
+            ...s.qualRatings,
+            [index]: keep ? { current, expected, rationale: keep } : { current, expected },
+          },
+        };
+      }),
     [],
   );
 
