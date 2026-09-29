@@ -303,6 +303,27 @@ export function Step5() {
         title="Ackumulerad nettovinst per år"
         description={`Break-even: ${net.breakEvenYear}`}
       >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label htmlFor="calc-years" className="text-sm font-medium text-foreground">
+            Antal år
+          </label>
+          <input
+            id="calc-years"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={15}
+            value={calcYears(state)}
+            onChange={(e) => {
+              const n = clampYears(Number(e.target.value));
+              setState((s) => ({ ...s, project: { ...s.project, calculationYears: n } }));
+            }}
+            className="h-9 w-20 rounded-md border border-input bg-background px-3 text-sm"
+          />
+          <span className="text-sm text-muted-foreground">
+            Kalkylperiod: {state.project.startYear}–{state.project.startYear + calcYears(state) - 1}
+          </span>
+        </div>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={cumulativeData} margin={{ left: 8, right: 8, top: 8 }}>

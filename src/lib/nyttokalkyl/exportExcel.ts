@@ -10,6 +10,7 @@ import {
   computeReallocation,
   staffAnnualCost,
   years,
+  calcYears,
 } from "./calc";
 import {
   DISCOUNT_RATE,

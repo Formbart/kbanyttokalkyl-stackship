@@ -46,7 +46,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
-import { computeCostSheet, formatKr, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { calcYears, computeCostSheet, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 
 function CostLabel() {
   return (
