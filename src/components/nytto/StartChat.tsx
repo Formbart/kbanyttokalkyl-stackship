@@ -33,7 +33,7 @@ interface DraftPayload {
     items?: CostItem[];
     staff?: StaffChange[];
   };
-  qualitative?: { benefitIndex: number; current: number; expected: number }[];
+  qualitative?: { benefitIndex: number; current: number; expected: number; rationale?: string }[];
   assumptions?: string;
 }
 
@@ -99,6 +99,9 @@ export function StartChat({
       qualRatings[q.benefitIndex] = {
         current: Math.min(5, Math.max(1, Number(q.current) || 3)),
         expected: Math.min(5, Math.max(1, Number(q.expected) || 3)),
+        ...(typeof q.rationale === "string" && q.rationale.trim()
+          ? { rationale: q.rationale.trim() }
+          : {}),
       };
     });
 

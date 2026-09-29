@@ -183,7 +183,7 @@ export interface AppState {
   };
   costToday: CostSheet<StaffToday>;
   costChange: CostSheet<StaffChange>;
-  qualRatings: Record<number, { current: number; expected: number }>;
+  qualRatings: Record<number, { current: number; expected: number; rationale?: string }>;
   reallocationInGraph: boolean;
   followUp: Record<number, FollowUp>;
   surveys: Record<number, Survey>;
