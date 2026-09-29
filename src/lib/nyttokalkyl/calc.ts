@@ -148,6 +148,24 @@ export function computeReallocation(
   return { hoursFreed, valueFreed };
 }
 
+/** Omfördelningsnyttan summerad över hela kalkylperioden (samma serie som i computeNetBenefit). */
+export function computeReallocationOverPeriod(
+  hoursFreed: number,
+  valueFreed: number,
+  costChangeGrowth: number,
+  startYear: number,
+  calculationYears: number,
+): { totalHoursFreed: number; totalValueFreedNPV: number } {
+  let totalValueFreedNPV = 0;
+  years(startYear, calculationYears).forEach((_, i) => {
+    totalValueFreedNPV +=
+      valueFreed *
+      Math.pow(1 + (costChangeGrowth || 0) / 100, i) *
+      Math.pow(1 + DISCOUNT_RATE, -i);
+  });
+  return { totalHoursFreed: hoursFreed * calculationYears, totalValueFreedNPV };
+}
+
 export function movementLabel(movement: number): string {
   const grades = [
     "Ingen förflyttning",
