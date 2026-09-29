@@ -43,7 +43,7 @@ interface StoreValue {
 const globalKey = "__nyttokalkylStoreContext__";
 const globalStore = globalThis as unknown as Record<
   string,
-  React.Context<StoreValue | null> | undefined
+  import("react").Context<StoreValue | null> | undefined
 >;
 const StoreContext =
   globalStore[globalKey] ??
