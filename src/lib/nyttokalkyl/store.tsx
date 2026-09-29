@@ -38,7 +38,16 @@ interface StoreValue {
 }
 
 
-const StoreContext = createContext<StoreValue | null>(null);
+// Keep the same context instance across hot reloads so an old Provider and a
+// freshly reloaded hook still match (otherwise the page crashes after edits).
+const globalKey = "__nyttokalkylStoreContext__";
+const globalStore = globalThis as unknown as Record<
+  string,
+  React.Context<StoreValue | null> | undefined
+>;
+const StoreContext =
+  globalStore[globalKey] ??
+  (globalStore[globalKey] = createContext<StoreValue | null>(null));
 
 export function NyttokalkylProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => initialState());
