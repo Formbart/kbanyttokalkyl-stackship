@@ -175,6 +175,8 @@ export interface AppState {
     alt1: string;
     alt2: string;
     startYear: number;
+    /** Kalkylperiodens längd i år. */
+    calculationYears?: number;
     benefits: Benefit[];
     stakeholders: string;
     revisions: Revision[];
@@ -194,6 +196,9 @@ export const FULL_TIME_HOURS = 1760;
 export const PO_FACTOR = 1.4024;
 export const DISCOUNT_RATE = 0.03;
 export const N_YEARS = 6;
+export const DEFAULT_CALCULATION_YEARS = 6;
+export const MIN_CALCULATION_YEARS = 1;
+export const MAX_CALCULATION_YEARS = 15;
 
 export const BENEFIT_TYPES: BenefitType[] = [
   "Finansiell nytta 💰",
@@ -307,6 +312,7 @@ export function initialState(): AppState {
       alt1: "",
       alt2: "",
       startYear: year,
+      calculationYears: 6,
       benefits: [],
       stakeholders: "",
       revisions: [],

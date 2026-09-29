@@ -46,7 +46,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
-import { computeCostSheet, formatKr, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { calcYears, computeCostSheet, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 
 function CostLabel() {
   return (
@@ -89,7 +89,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const key = scenario === "today" ? "costToday" : "costChange";
   const sheet = state[key];
   const startYear = state.project.startYear;
-  const calc = computeCostSheet(sheet, startYear);
+  const nYears = calcYears(state);
+  const calc = computeCostSheet(sheet, startYear, nYears);
+  const outside = itemsOutsidePeriod(sheet, startYear, nYears);
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<{
     items?: CostItem[];
@@ -713,8 +715,13 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Kalkylperiod: {years(startYear).join(", ")}
+          Kalkylperiod: {years(startYear, nYears).join(", ")} (antal år ändras på steg 5)
         </p>
+        {outside > 0 && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {outside} kostnadspost(er) ligger utanför den valda kalkylperioden och räknas inte med.
+          </p>
+        )}
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <KpiCard
             label="Summa nuvärde (sannolikt)"
