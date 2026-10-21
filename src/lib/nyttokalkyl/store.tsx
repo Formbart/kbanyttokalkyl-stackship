@@ -49,8 +49,14 @@ const StoreContext =
   globalStore[globalKey] ??
   (globalStore[globalKey] = createContext<StoreValue | null>(null));
 
-export function NyttokalkylProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => initialState());
+export function NyttokalkylProvider({
+  children,
+  initial,
+}: {
+  children: ReactNode;
+  initial?: AppState;
+}) {
+  const [state, setState] = useState<AppState>(() => initial ?? initialState());
   const [resetToken, setResetToken] = useState(0);
 
   const updateProject = useCallback(
