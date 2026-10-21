@@ -255,17 +255,28 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     }
     if (s.staff?.length) {
       if (scenario === "today") {
-        setStaffToday([
-          ...staffToday,
-          ...s.staff.map((r) => ({
-            ...emptyStaffToday(),
-            role: r.role ?? "Övrig personalresurs",
-            salary: Number(r.salary) || 0,
-            hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
-            count: r.count == null ? 1 : Number(r.count) || 0,
-            desc: r.desc ?? "",
-          })),
-        ]);
+        const rows = s.staff.map((r) => ({
+          ...emptyStaffToday(),
+          role: r.role ?? "Övrig personalresurs",
+          salary: Number(r.salary) || 0,
+          hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+          count: r.count == null ? 1 : Number(r.count) || 0,
+          desc: r.desc ?? "",
+        }));
+        const mirrors: StaffChange[] = rows.map((row) => ({
+          ...emptyStaffChange(row.id),
+          forvaltning: row.forvaltning,
+          positionIndex: row.positionIndex,
+          role: row.role,
+          salary: row.salary,
+          hours: row.hours,
+          count: row.count,
+        }));
+        setState((prev) => ({
+          ...prev,
+          costToday: { ...prev.costToday, staff: [...prev.costToday.staff, ...rows] },
+          costChange: { ...prev.costChange, staff: [...prev.costChange.staff, ...mirrors] },
+        }));
       } else {
         setStaffChange([
           ...staffChange,
