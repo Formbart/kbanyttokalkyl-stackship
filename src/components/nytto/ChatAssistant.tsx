@@ -14,7 +14,7 @@ export function ChatAssistant() {
   const { state, setState } = useNyttokalkyl();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean; report?: string }>({});
+  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean | undefined; report?: string | undefined }>({});
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [patch, setPatch] = useState<Partial<AppState> | null>(null);

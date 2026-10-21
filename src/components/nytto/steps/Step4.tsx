@@ -25,7 +25,7 @@ export function Step4() {
   const callAgent = useCalculationAgent();
   const { state, setState, setQualRating } = useNyttokalkyl();
   const rows = computeQualitative(state);
-  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean; report?: string }>>({});
+  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean | undefined; report?: string | undefined }>>({});
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   const setRank = (index: number, rank: Rank) =>

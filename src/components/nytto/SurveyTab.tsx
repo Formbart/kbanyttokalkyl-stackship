@@ -103,7 +103,7 @@ export function SurveyTab({
   const { state, setSurvey } = useNyttokalkyl();
   const survey = state.surveys[index];
   const followUp = state.followUp[index];
-  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean; report?: string }>({});
+  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean | undefined; report?: string | undefined }>({});
   const [loading, setLoading] = useState(false);
   const [questionCount, setQuestionCount] = useState(6);
   const [printing, setPrinting] = useState(false);

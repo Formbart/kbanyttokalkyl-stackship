@@ -22,7 +22,7 @@ export function Step6() {
   const callAgent = useCalculationAgent();
   const { state, setFollowUp } = useNyttokalkyl();
   const benefits = state.project.benefits;
-  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean; report?: string }>>({});
+  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean | undefined; report?: string | undefined }>>({});
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   const suggestFollowUp = async (index: number) => {
