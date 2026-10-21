@@ -141,16 +141,16 @@ export function FactCheckBadge({
   const badge = (
     <span className="inline-flex items-center gap-1 rounded-full border border-positive/40 bg-positive/10 px-2 py-0.5 text-[11px] font-medium text-positive-strong">
       <Check className="size-3" />
-      Faktagranskat
+      Faktagranskad
     </span>
   );
   if (!report) return badge;
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className="no-print cursor-pointer">
-          {badge}
-        </button>
+        <Button type="button" variant="ghost" size="sm" className="no-print gap-2">
+          {badge} <span className="text-xs">Visa detaljer</span>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="max-h-64 w-80 overflow-y-auto text-xs leading-relaxed whitespace-pre-line">
         {report}

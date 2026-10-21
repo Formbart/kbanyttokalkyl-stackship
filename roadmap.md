@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.
-- [ ] Rätta Excel-formler och kontrollera samma resultat som appen.
-- [ ] Anpassa AI-anrop och säkra mejlflödet; invänta ny n8n-adress och mejlnyckel.
+- [x] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.
+- [x] Rätta Excel-formler och kontrollera samma resultat som appen.
+- [x] Anpassa AI-anrop, 90-sekundersgräns, faktagranskning och säkra mejlflödet med nyckel.
+- [ ] Uppdatera n8n-arbetsflödets granskning och verifiera mejlleverans: extern åtkomst till nya n8n-flödet saknas; nuvarande granskning rapporterar felaktiga KALKYLFEL trots korrekta beräknade värden.
 
 - [x] Visa användarens namn längst till höger i toppmenyn.
 - [x] Flytta Mina kalkyler till en egen sida för att öppna sparade kalkyler.

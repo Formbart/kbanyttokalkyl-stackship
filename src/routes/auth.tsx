@@ -22,6 +22,8 @@ export const Route = createFileRoute("/auth")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:image", content: loginBg.url },
+      { name: "twitter:image", content: loginBg.url },
     ],
   }),
   component: AuthPage,

@@ -4,13 +4,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { callAgent, type ChatMessage } from "@/lib/nyttokalkyl/agent";
+import type { ChatMessage } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
+import { FactCheckBadge } from "./shared";
 import type { AppState } from "@/lib/nyttokalkyl/types";
 
 export function ChatAssistant() {
+  const callAgent = useCalculationAgent();
   const { state, setState } = useNyttokalkyl();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean | undefined; report?: string | undefined }>({});
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [patch, setPatch] = useState<Partial<AppState> | null>(null);
@@ -31,9 +35,10 @@ export function ChatAssistant() {
       toast.error(res.error);
       return;
     }
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     const data = res.data ?? {};
-    if (data.reply)
-      setHistory((h) => [...h, { role: "assistant", content: data.reply! }]);
+    const reply = data.reply;
+    if (reply) setHistory((h) => [...h, { role: "assistant", content: reply }]);
     setPatch(data.suggestedPatch ?? null);
   };
 
@@ -98,6 +103,7 @@ export function ChatAssistant() {
             <Loader2 className="size-4 animate-spin" /> AI tänker…
           </div>
         )}
+        <FactCheckBadge {...factCheck} />
         {patch && (
           <Button size="sm" onClick={applyPatch}>
             Använd förslag

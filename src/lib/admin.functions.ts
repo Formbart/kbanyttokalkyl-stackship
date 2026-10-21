@@ -33,7 +33,11 @@ async function assertAdmin(context: {
   supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
   userId: string;
 }) {
-  await assertRole(context, "admin", "Endast administratörer har tillgång.");
+  const [admin, superadmin] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
+  ]);
+  if (admin.data !== true && superadmin.data !== true) throw new Error("Endast administratörer har tillgång.");
 }
 
 async function assertSuperAdmin(context: {
@@ -206,21 +210,21 @@ export const sendCredentials = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context as never);
-    const url = process.env["N8N_USER_WEBHOOK_URL"];
-    if (!url) {
+    const baseUrl = process.env["N8N_BASE_URL"]?.replace(/\/$/, "");
+    const url = baseUrl ? `${baseUrl}/webhook/99a7a6e8-e622-4f99-bd69-748a0ab4c6b4` : process.env["N8N_USER_WEBHOOK_URL"];
+    const apiKey = process.env["N8N_MAIL_API_KEY"];
+    if (!url || !apiKey) {
       return { sent: false, reason: "missing_webhook" as const };
     }
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+        signal: AbortSignal.timeout(90_000),
         body: JSON.stringify({
           email: data.email,
           password: data.password,
            event: data.event,
-          fullName: data.fullName ?? null,
-          appName: "Nyttokalkyl – Kungsbacka kommun",
-           loginUrl: "https://id-preview--16699c16-cabf-4f2e-ae89-5b2138dfbb3a.lovable.app/auth",
         }),
       });
       if (!res.ok) {

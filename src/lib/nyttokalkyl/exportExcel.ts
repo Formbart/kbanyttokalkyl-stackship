@@ -8,6 +8,10 @@ import {
   computeNetBenefit,
   computeQualitative,
   computeReallocation,
+  computeProjectCosts,
+  discountRate,
+  matchStaffRows,
+  NO_BREAK_EVEN,
   staffAnnualCost,
   years,
   calcYears,
@@ -118,11 +122,14 @@ function addCostSheet(
   sheet: CostSheet<StaffToday | StaffChange>,
   startYear: number,
   nYears: number,
-) {
+  rate: number,
+  baseline?: { sheet: CostSheet<StaffToday>; exported: ReturnType<typeof addCostSheet> },
+): { worksheet: Worksheet; totalCell: string; yearRows: number[]; staffRows: number[]; marginCell: string } {
   const ws = workbook.addWorksheet(name);
   title(ws, name, subtitle, 10);
   section(ws, 4, "Antaganden", 10);
-  ws.addRow(["Årlig kostnadsökning", sheet.growth / 100, "PO-påslag", PO_FACTOR - 1, "Heltidsmått (h/år)", FULL_TIME_HOURS]);
+  ws.addRow(["Årlig kostnadsökning", sheet.growth / 100, "PO-påslag", PO_FACTOR - 1, "Heltidsmått (h/år)", FULL_TIME_HOURS, "Diskonteringsränta", { formula: "'1 Grundinformation'!F5", result: rate }]);
+  formula(ws.getCell("H5"), percentFormat, true);
   [ws.getCell("B5"), ws.getCell("D5")].forEach((cell) => input(cell, percentFormat));
   input(ws.getCell("F5"), numberFormat);
 
@@ -153,21 +160,33 @@ function addCostSheet(
   ]);
   header(staffHeaderRow);
   const staffStart = ws.rowCount + 1;
-  sheet.staff.forEach((person) => {
+  const staffRows: number[] = [];
+  const matches = matchStaffRows(baseline?.sheet.staff ?? [], sheet.staff);
+  sheet.staff.forEach((person, index) => {
     const isChange = "benefitType" in person;
-    const annual = staffAnnualCost(person.salary, person.hours, person.count ?? 1);
+    const match = matches[index];
+    const t = match == null ? undefined : baseline?.sheet.staff[match];
+    const baselineRow = match == null ? undefined : baseline?.exported.staffRows[match];
+    const retained = isChange && (person as StaffChange).benefitType === "Omfördelningsnytta ↺" && t && baselineRow;
+    const costPerson = retained ? t : person;
+    const annual = staffAnnualCost(costPerson.salary, costPerson.hours, costPerson.count ?? 1);
+    const rowNumber = ws.rowCount + 1;
+    const staffCostFormula = baseline && baselineRow
+      ? `IF(F${rowNumber}="Omfördelningsnytta ↺",'${baseline.exported.worksheet.name}'!H${baselineRow},B${rowNumber}*D${rowNumber}*12*(1+$D$5)*E${rowNumber}/$F$5)`
+      : `B${rowNumber}*D${rowNumber}*12*(1+$D$5)*E${rowNumber}/$F$5`;
+    staffRows.push(rowNumber);
     const row = ws.addRow([
       person.role,
       person.count ?? 1,
-      person.hours / FULL_TIME_HOURS,
+      { formula: `E${rowNumber}/$F$5`, result: person.hours / FULL_TIME_HOURS },
       person.salary,
       person.hours,
       isChange ? (person as StaffChange).benefitType : "",
       person.desc,
-      { formula: `B${ws.rowCount + 1}*D${ws.rowCount + 1}*12*(1+$D$5)*C${ws.rowCount + 1}`, result: annual },
+      { formula: staffCostFormula, result: annual },
     ]);
     for (let column = 1; column <= 7; column += 1) input(row.getCell(column));
-    row.getCell(3).numFmt = percentFormat;
+    formula(row.getCell(3), percentFormat);
     row.getCell(4).numFmt = currencyFormat;
     row.getCell(5).numFmt = numberFormat;
     formula(row.getCell(8), currencyFormat);
@@ -177,38 +196,52 @@ function addCostSheet(
 
   const summarySectionRow = ws.rowCount + 2;
   section(ws, summarySectionRow, "Kostnader per år", 10);
-  const summaryHeader = ws.addRow(["År", "Engångskostnader (kr)", "Löpande kostnader (kr)", "Personalkostnader (kr)", "Total kostnad (kr)", "Nuvärde (kr)"]);
+  const summaryHeader = ws.addRow(["År", "Engångskostnader (kr)", "Löpande kostnader (kr)", "Personalkostnader (kr)", "Total kostnad (kr)", "Nuvärde (kr)", "Felmarginal, nuvärde (kr)"]);
   header(summaryHeader);
-  const calc = computeCostSheet(sheet, startYear, nYears);
+  const calc = computeCostSheet(sheet, startYear, nYears, rate, baseline?.sheet);
+  const yearRows: number[] = [];
   calc.perYear.forEach((calculated, index) => {
     const excelRow = ws.rowCount + 1;
     const year = startYear + index;
-    const oneTimeFormula = sheet.items.length
-      ? `SUMIFS($C$${itemStart}:$C$${itemEnd},$B$${itemStart}:$B$${itemEnd},"Engångskostnad",$D$${itemStart}:$D$${itemEnd},A${excelRow})`
-      : "0";
-    const recurringFormula = sheet.items.length
-      ? `SUMIFS($C$${itemStart}:$C$${itemEnd},$B$${itemStart}:$B$${itemEnd},"Löpande driftkostnader (årligen återkommande)",$D$${itemStart}:$D$${itemEnd},"<="&A${excelRow})*(1+$B$5)^(A${excelRow}-$A$${excelRow - index})`
-      : "0";
-    const staffFormula = sheet.staff.length
-      ? `SUM($H$${staffStart}:$H$${staffEnd})*(1+$B$5)^(A${excelRow}-$A$${excelRow - index})`
-      : "0";
+    yearRows.push(excelRow);
+    const oneTimeTerms: string[] = [];
+    const recurringTerms: string[] = [];
+    const marginTerms: string[] = [];
+    sheet.items.forEach((item, index) => {
+      const r = itemStart + index;
+      const once = `IF(AND($B$${r}="Engångskostnad",$D$${r}<>"",$D$${r}=A${excelRow}),$C$${r},0)`;
+      const recurring = `IF(AND($B$${r}<>"Engångskostnad",$D$${r}<>"",$D$${r}<=A${excelRow}),$C$${r}*(1+$B$5)^(A${excelRow}-$D$${r}),0)`;
+      oneTimeTerms.push(once); recurringTerms.push(recurring);
+      marginTerms.push(`ABS(${once}+${recurring})*$E$${r}`);
+    });
+    const oneTimeFormula = oneTimeTerms.join("+") || "0";
+    const recurringFormula = recurringTerms.join("+") || "0";
+    const staffFormula = staffRows.map((r, j) => {
+      const match = matches[j];
+      const baselineRow = match == null ? undefined : baseline?.exported.staffRows[match];
+      const growth = baseline && baselineRow ? `IF(F${r}="Omfördelningsnytta ↺",'${baseline.exported.worksheet.name}'!$B$5,$B$5)` : "$B$5";
+      return `$H$${r}*(1+${growth})^(A${excelRow}-$A$${yearRows[0]})`;
+    }).join("+") || "0";
     const row = ws.addRow([
-      String(year),
+      year,
       { formula: oneTimeFormula, result: calculated.oneTime },
       { formula: recurringFormula, result: calculated.recurring },
       { formula: staffFormula, result: calculated.staffCost },
       { formula: `SUM(B${excelRow}:D${excelRow})`, result: calculated.total },
-      { formula: `E${excelRow}/(1+${DISCOUNT_RATE})^(A${excelRow}-$A$${excelRow - index})`, result: calculated.npv },
+      { formula: `E${excelRow}/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})`, result: calculated.npv },
+      { formula: `(${marginTerms.join("+") || "0"})/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})` },
     ]);
     input(row.getCell(1));
-    for (let column = 2; column <= 6; column += 1) formula(row.getCell(column), currencyFormat);
+    for (let column = 2; column <= 7; column += 1) formula(row.getCell(column), currencyFormat);
   });
   const totalRowNumber = ws.rowCount + 1;
-  const totalRow = ws.addRow(["Totalt nuvärde", "", "", "", "", { formula: `SUM(F${totalRowNumber - 6}:F${totalRowNumber - 1})`, result: calc.npvSum }]);
+  const totalRow = ws.addRow(["Totalt nuvärde", "", "", "", "", { formula: `SUM(F${yearRows[0]}:F${yearRows[yearRows.length - 1]})`, result: calc.npvSum }]);
+  totalRow.getCell(7).value = { formula: `SUM(G${yearRows[0]}:G${yearRows[yearRows.length - 1]})`, result: calc.marginSum };
+  formula(totalRow.getCell(7), currencyFormat);
   totalRow.font = { name: "Arial", bold: true };
   formula(totalRow.getCell(6), currencyFormat);
   finish(ws, [26, 18, 19, 18, 17, 22, 35, 22, 14, 14]);
-  return { worksheet: ws, totalCell: `F${totalRowNumber}` };
+  return { worksheet: ws, totalCell: `F${totalRowNumber}`, yearRows, staffRows, marginCell: `G${totalRowNumber}` };
 }
 
 function safeFilename(name: string) {
@@ -216,7 +249,7 @@ function safeFilename(name: string) {
   return `nyttokalkyl-${cleaned || "utkast"}.xlsx`;
 }
 
-export async function exportNyttokalkylToExcel(state: AppState) {
+export function buildNyttokalkylWorkbook(state: AppState) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Kungsbacka kommun – Nyttokalkyl";
   workbook.created = new Date();
@@ -225,11 +258,12 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   const basic = workbook.addWorksheet("1 Grundinformation");
   title(basic, "1 Grundinformation", "Projektuppgifter, alternativ och planerade nyttor", 8);
   section(basic, 4, "Projekt", 8);
-  basic.addRow(["Projektnamn", state.project.name, "Startår", String(state.project.startYear)]);
+  basic.addRow(["Projektnamn", state.project.name, "Startår", state.project.startYear, "Diskonteringsränta", discountRate(state)]);
   basic.addRow(["Alternativ 1", state.project.alt1]);
   basic.addRow(["Alternativ 2", state.project.alt2]);
   basic.addRow(["Intressenter", state.project.stakeholders]);
   ["B5", "D5", "B6", "B7", "B8"].forEach((address) => input(basic.getCell(address)));
+  input(basic.getCell("F5"), percentFormat);
   section(basic, 10, "Nyttor", 8);
   const benefitHeader = basic.addRow(["Förändring", "Effekt", "Nytta", "Intressent", "Typ", "Gynnas", "Mål", "Prioritering"]);
   header(benefitHeader);
@@ -247,8 +281,8 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   });
   finish(basic, [24, 35, 35, 24, 26, 18, 28, 24]);
 
-  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear, calcYears(state));
-  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear, calcYears(state));
+  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear, calcYears(state), discountRate(state));
+  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear, calcYears(state), discountRate(state), { sheet: state.costToday, exported: today });
 
   const qualitative = workbook.addWorksheet("4 Kvalitativa nyttor");
   title(qualitative, "4 Kvalitativa nyttor", "Bedömning av kvalitativa nyttor och miljönyttor", 8);
@@ -273,45 +307,60 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   finish(qualitative, [48, 25, 18, 17, 21, 16, 24, 12]);
 
   const result = workbook.addWorksheet("5 Resultat");
-  title(result, "5 Resultat", "Sammanställning av kostnader, nettonytta och omfördelningsnytta", 8);
+  title(result, "5 Resultat", "Finansiell nettonytta och omfördelningsnytta – separat redovisning", 8);
   section(result, 4, "Nyckeltal", 8);
-  const todayCalc = computeCostSheet(state.costToday, state.project.startYear, calcYears(state));
-  const changeCalc = computeCostSheet(state.costChange, state.project.startYear, calcYears(state));
-  const net = computeNetBenefit(state, todayCalc, changeCalc, state.reallocationInGraph);
+  const { todayCalc, changeCalc } = computeProjectCosts(state);
+  const net = computeNetBenefit(state, todayCalc, changeCalc);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
-  result.addRow(["Kostnad idag, nuvärde (kr)", { formula: `'${today.worksheet.name}'!${today.totalCell}`, result: todayCalc.npvSum }]);
-  result.addRow(["Kostnad vid förändring, nuvärde (kr)", { formula: `'${change.worksheet.name}'!${change.totalCell}`, result: changeCalc.npvSum }]);
-  result.addRow(["Omfördelningsnytta inkluderad", state.reallocationInGraph ? "Ja" : "Nej"]);
-  result.addRow(["Frigjorda timmar/år", realloc.hoursFreed]);
-  result.addRow(["Värde av frigjord tid/år (kr)", realloc.valueFreed]);
-  result.addRow(["Finansiell nettonytta (kr)", { formula: "SUM(B15:B20)", result: net.totalNet }]);
-  result.addRow(["Break-even år", String(net.breakEvenYear)]);
-  ["B5", "B6"].forEach((address) => formula(result.getCell(address), currencyFormat, true));
-  input(result.getCell("B7"));
-  input(result.getCell("B8"), numberFormat);
-  input(result.getCell("B9"), currencyFormat);
-  formula(result.getCell("B10"), currencyFormat);
-  input(result.getCell("B11"));
-  section(result, 13, "Nettonytta per år", 8);
-  header(result.addRow(["År", "Nettonytta (kr)", "Ackumulerad nettonytta (kr)"]));
-  net.perYear.forEach((item, index) => {
-    const rowNumber = result.rowCount + 1;
-    const todaySourceRow = today.worksheet.rowCount - 6 + index;
-    const changeSourceRow = change.worksheet.rowCount - 6 + index;
-    const linkedFormula = `'${today.worksheet.name}'!F${todaySourceRow}-'${change.worksheet.name}'!F${changeSourceRow}+IF($B$7="Ja",$B$9*(1+'${change.worksheet.name}'!$B$5)^(A${rowNumber}-$A$15)/(1+${DISCOUNT_RATE})^(A${rowNumber}-$A$15),0)`;
-    const row = result.addRow([
-      String(item.year),
-      { formula: linkedFormula, result: item.net },
-      { formula: index === 0 ? `B${rowNumber}` : `C${rowNumber - 1}+B${rowNumber}`, result: item.cumulative },
-    ]);
-    input(row.getCell(1));
-    formula(row.getCell(2), currencyFormat, true);
-    formula(row.getCell(3), currencyFormat);
+  const addMetric = (label: string, value: ExcelJS.CellValue, format = currencyFormat) => {
+    const row = result.addRow([label, value]);
+    formula(row.getCell(2), format, true);
+    return `B${row.number}`;
+  };
+  addMetric("Kostnad idag, nuvärde (kr)", { formula: `'${today.worksheet.name}'!${today.totalCell}`, result: todayCalc.npvSum });
+  addMetric("Kostnad förändring, nuvärde (kr)", { formula: `'${change.worksheet.name}'!${change.totalCell}`, result: changeCalc.npvSum });
+  const freedTerms: string[] = [];
+  const valueTerms: string[] = [];
+  const matches = matchStaffRows(state.costToday.staff, state.costChange.staff);
+  state.costChange.staff.forEach((_, i) => {
+    const match = matches[i];
+    const t = match == null ? undefined : today.staffRows[match];
+    const c = change.staffRows[i];
+    if (t == null || c == null) return;
+    const hours = `('${today.worksheet.name}'!B${t}*'${today.worksheet.name}'!E${t}-'${change.worksheet.name}'!B${c}*'${change.worksheet.name}'!E${c})`;
+    freedTerms.push(`IF('${change.worksheet.name}'!F${c}="Omfördelningsnytta ↺",${hours},0)`);
+    valueTerms.push(`IF('${change.worksheet.name}'!F${c}="Omfördelningsnytta ↺",${hours}*'${today.worksheet.name}'!D${t}*12*(1+'${today.worksheet.name}'!$D$5)/'${today.worksheet.name}'!$F$5,0)`);
   });
+  const hoursCell = addMetric("Frigjorda timmar/år", { formula: freedTerms.join("+") || "0", result: realloc.hoursFreed }, numberFormat);
+  const valueCell = addMetric("Värde av frigjord tid/år (kr)", { formula: valueTerms.join("+") || "0", result: realloc.valueFreed });
+  const netCell = addMetric("Finansiell nettonytta (nuvärde)", 0);
+  const reallocCell = addMetric("Omfördelningsnytta (nuvärde)", 0);
+  const breakCell = addMetric("Break-even år", 0, "General");
+  addMetric("Finansiell nettonytta – lågt", { formula: `'${today.worksheet.name}'!${today.totalCell}-'${change.worksheet.name}'!${change.totalCell}-'${today.worksheet.name}'!${today.marginCell}-'${change.worksheet.name}'!${change.marginCell}`, result: net.low });
+  addMetric("Finansiell nettonytta – högt", { formula: `'${today.worksheet.name}'!${today.totalCell}-'${change.worksheet.name}'!${change.totalCell}+'${today.worksheet.name}'!${today.marginCell}+'${change.worksheet.name}'!${change.marginCell}`, result: net.high });
+  result.addRow(["Frigjord tid som används till annat – inte en besparing i budget"]);
+  const sectionRow = result.rowCount + 2;
+  section(result, sectionRow, "Nettonytta per år", 8);
+  header(result.addRow(["År", "Finansiell nettonytta (kr)", "Omfördelningsnytta (kr)", "Ackumulerad finansiell nettonytta (kr)"]));
+  const resultRows: number[] = [];
+  net.perYear.forEach((item, index) => {
+    const r = result.rowCount + 1;
+    resultRows.push(r);
+    result.addRow([item.year,
+      { formula: `'${today.worksheet.name}'!F${today.yearRows[index]}-'${change.worksheet.name}'!F${change.yearRows[index]}`, result: item.net },
+      { formula: `$${valueCell[0]}$${valueCell.slice(1)}*(1+'${today.worksheet.name}'!$B$5)^(A${r}-$A$${resultRows[0]})/(1+'${today.worksheet.name}'!$H$5)^(A${r}-$A$${resultRows[0]})`, result: item.reallocation },
+      { formula: index === 0 ? `B${r}` : `D${r - 1}+B${r}`, result: item.cumulative }]);
+    for (let c = 2; c <= 4; c++) formula(result.getCell(r, c), currencyFormat, c < 4);
+  });
+  const first = resultRows[0];
+  const last = resultRows[resultRows.length - 1];
+  result.getCell(netCell).value = { formula: `SUM(B${first}:B${last})`, result: net.totalNet };
+  result.getCell(reallocCell).value = { formula: `SUM(C${first}:C${last})`, result: net.perYear.reduce((sum, r) => sum + r.reallocation, 0) };
+  result.getCell(breakCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(D${r}>0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYear };
   section(result, result.rowCount + 2, "Kvalitativa nyttor", 8);
   header(result.addRow(["Nytta", "Typ", "Gynnas", "Förflyttning", "Bedömning"]));
   qualRows.forEach((item) => result.addRow([benefitSentence(item.benefit), item.benefit.type, item.benefit.gynnas, item.movement, item.label]));
-  finish(result, [38, 24, 24, 18, 28, 16, 16, 16]);
+  finish(result, [48, 26, 26, 30, 28, 16, 16, 16]);
 
   const followUp = workbook.addWorksheet("6 Uppföljning");
   title(followUp, "6 Uppföljning", "Plan för uppföljning och realisering av nyttorna", 10);
@@ -328,6 +377,11 @@ export async function exportNyttokalkylToExcel(state: AppState) {
   if (state.project.benefits.length === 0) followUp.addRow(["Inga nyttor att följa upp"]);
   finish(followUp, [42, 24, 32, 28, 20, 28, 28, 22, 28, 28]);
 
+  return workbook;
+}
+
+export async function exportNyttokalkylToExcel(state: AppState) {
+  const workbook = buildNyttokalkylWorkbook(state);
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
