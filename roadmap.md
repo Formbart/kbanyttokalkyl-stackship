@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Uppdatera årstabellen med arbetstidskostnad och separat budgetkostnad för båda nyttotyperna; verifiera ändrad tjänstegrad och lön.
+- [x] Uppdatera årstabellen med arbetstidskostnad och separat budgetkostnad för båda nyttotyperna; verifiera ändrad tjänstegrad och lön.
 
 - [x] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.
 - [x] Rätta Excel-formler och kontrollera samma resultat som appen.
