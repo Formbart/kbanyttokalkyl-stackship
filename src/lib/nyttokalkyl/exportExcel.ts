@@ -27,6 +27,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "./types";
+import { staffMarginOf } from "./types";
 
 const COLORS = {
   brand: "FF255E57",
