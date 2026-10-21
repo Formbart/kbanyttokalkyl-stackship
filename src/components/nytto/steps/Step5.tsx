@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
+  LabelList,
   Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -17,6 +17,8 @@ import {
 } from "recharts";
 
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { differingCosts, misplacedInvestments, moveInvestment, firstYearBreakEvenWarning, identicalCostWarning } from "@/lib/nyttokalkyl/resultPresentation";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
   AiButton,
@@ -37,6 +39,8 @@ import {
   computeReallocation,
   computeReallocationOverPeriod,
   formatKr,
+  formatKrCompact,
+  createKrAxisFormatter,
   formatNumber,
   hasAnyData,
 } from "@/lib/nyttokalkyl/calc";
@@ -73,28 +77,39 @@ export function Step5() {
   const scenarioData = [
     {
       scenario: "Sämsta",
-      idag: Math.round(todayCalc.best),
-      forandring: Math.round(changeCalc.worst),
+      idag: todayCalc.best,
+      forandring: changeCalc.worst,
     },
     {
       scenario: "Sannolikt",
-      idag: Math.round(todayCalc.npvSum),
-      forandring: Math.round(changeCalc.npvSum),
+      idag: todayCalc.npvSum,
+      forandring: changeCalc.npvSum,
     },
     {
       scenario: "Bästa",
-      idag: Math.round(todayCalc.worst),
-      forandring: Math.round(changeCalc.best),
+      idag: todayCalc.worst,
+      forandring: changeCalc.best,
     },
   ];
 
 
+  const comparison = differingCosts(state);
+  const investments = misplacedInvestments(state);
+  const costTicks = createKrAxisFormatter(Math.max(...comparison.rows.flatMap((r) => [Math.abs(r.idag), Math.abs(r.forandring)])));
+  const scenarioTicks = createKrAxisFormatter(Math.max(Math.abs(net.low), Math.abs(net.totalNet), Math.abs(net.high)));
+  const annualTicks = createKrAxisFormatter(Math.max(...net.perYear.flatMap((r) => [Math.abs(r.net), Math.abs(r.cumulative)])));
+  const netScenarios = [
+    { scenario: "Sämsta", value: net.low },
+    { scenario: "Sannolikt", value: net.totalNet },
+    { scenario: "Bästa", value: net.high },
+  ];
+
   const cumulativeData = net.perYear.map((r) => ({
     year: String(r.year),
-    arlig: Math.round(r.net),
-    ackumulerat: Math.round(r.cumulative),
-    positiv: r.cumulative > 0 ? Math.round(r.cumulative) : 0,
-    negativ: r.cumulative < 0 ? Math.round(r.cumulative) : 0,
+    arlig: r.net,
+    ackumulerat: r.cumulative,
+    positiv: r.cumulative > 0 ? r.cumulative : 0,
+    negativ: r.cumulative < 0 ? r.cumulative : 0,
   }));
   const reallocPeriod = computeReallocationOverPeriod(
     realloc.hoursFreed,
@@ -156,28 +171,42 @@ export function Step5() {
 
   return (
     <div className="print-full space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="space-y-3">
+        {investments.map(({ item, index }) => (
+          <div key={index} role="status" className="grid min-w-0 gap-3 rounded-lg border border-change/40 bg-change/10 p-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <p className="min-w-0 break-words">Engångskostnaden '{item.name || "Namnlös kostnad"}' ligger i Kostnad idag. Investeringar för förändringen hör normalt till Kostnad vid förändring – kontrollera, annars blir nettonyttan för hög.</p>
+            <Button variant="outline" size="sm" className="no-print h-auto min-h-9 whitespace-normal sm:max-w-52" onClick={() => setState((current) => moveInvestment(current, index))}>Flytta till Kostnad vid förändring</Button>
+          </div>
+        ))}
+        {firstYearBreakEvenWarning(state, net.breakEvenYear) && <p role="status" className="rounded-lg border border-change/40 bg-change/10 p-4 text-sm">Break-even redan första året – kontrollera att investeringarna ligger på rätt sida.</p>}
+        {identicalCostWarning(comparison.identical, todayCalc.npvSum) && <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">Merparten av kostnaderna är lika i båda alternativen och visas därför inte i diagrammet.</p>}
+      </div>
+      <div data-testid="result-kpis" className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Kostnad idag (nuvärde)"
-          value={formatKr(todayCalc.npvSum)}
+          value={formatKrCompact(todayCalc.npvSum)}
+          exactValue={formatKr(todayCalc.npvSum)}
           tone="today"
           hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Kostnad vid förändring"
-          value={formatKr(changeCalc.npvSum)}
+          value={formatKrCompact(changeCalc.npvSum)}
+          exactValue={formatKr(changeCalc.npvSum)}
           tone="change"
           hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Finansiell nettonytta"
-          value={formatKr(net.totalNet)}
+          value={formatKrCompact(net.totalNet)}
+          exactValue={formatKr(net.totalNet)}
           tone={net.totalNet >= 0 ? "positive" : "negative"}
-          hint={`Intervall: ${formatKr(net.low)} – ${formatKr(net.high)}`}
+          hint={`Intervall: ${formatKrCompact(net.low)} – ${formatKrCompact(net.high)}`}
         />
         <KpiCard
           label="Nettonytta inkl. omfördelning"
-          value={formatKr(net.totalNetIncl)}
+          value={formatKrCompact(net.totalNetIncl)}
+          exactValue={formatKr(net.totalNetIncl)}
           tone={net.totalNetIncl >= 0 ? "positive" : "negative"}
           hint="Motsvarar mallens 'Ja'-läge – inte budgetpåverkande"
         />
@@ -192,48 +221,45 @@ export function Step5() {
       </div>
 
       <SectionCard
-        title="Kostnad idag vs vid förändring"
-        description="Summa nuvärde över kalkylperioden i tre scenarier. Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginalen avser bara det som skiljer alternativen åt."
-        action={
-          <AiButton onClick={() => void runReview()} loading={loading}>
-            AI-granskning
-          </AiButton>
-        }
+        title="Kostnader som skiljer alternativen åt"
+        action={<AiButton onClick={() => void runReview()} loading={loading}>AI-granskning</AiButton>}
       >
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={scenarioData} margin={{ left: 8, right: 8, top: 8 }}>
-              <CartesianGrid vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="scenario" tickLine={false} axisLine={false} />
-              <YAxis
-                tickFormatter={(v: number) => `${Math.round(v / 1000)} tkr`}
-                tickLine={false}
-                axisLine={false}
-                width={70}
-              />
-              <Tooltip
-                formatter={(v: number) => formatKr(v)}
-                contentStyle={{ borderRadius: 12, borderColor: "var(--color-border)" }}
-              />
-              <Legend />
-              <Bar
-                dataKey="idag"
-                name="Kostnad idag"
-                fill="var(--today)"
-                isAnimationActive={false}
-                radius={[6, 6, 0, 0]}
-              />
-              <Bar
-                dataKey="forandring"
-                name={changeLabel}
-                fill="var(--change)"
-                isAnimationActive={false}
-                radius={[6, 6, 0, 0]}
-              />
+        {comparison.hasDifference ? (
+          <div className="h-80 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={comparison.rows} margin={{ left: 0, right: 8, top: 16, bottom: 8 }}>
+                <CartesianGrid vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="category" tickLine={false} axisLine={false} interval={0} height={62} tick={{ fontSize: 11 }} tickFormatter={(label: string) => label.startsWith("Personal") ? "Personal" : label} />
+                <YAxis tickFormatter={costTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number) => formatKr(v)} contentStyle={{ borderRadius: 8, borderColor: "var(--color-border)", background: "var(--color-card)" }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="idag" name="Kostnad idag" fill="var(--today)" isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="forandring" name={changeLabel} fill="var(--change)" isAnimationActive={false} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p className="py-8 text-center text-sm text-muted-foreground">Alternativen har samma kostnader – ingen finansiell skillnad</p>}
+        <p className="mt-3 text-xs text-muted-foreground">Personal avser endast finansiellt påverkade rader.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Ej i diagrammet: <span className="whitespace-nowrap tabular-nums" title={formatKr(comparison.identical)}>{formatKrCompact(comparison.identical)}</span> i kostnader som är lika i båda alternativen (t.ex. personal som behålls vid omfördelning).</p>
+      </SectionCard>
 
+      <SectionCard title="Finansiell nettonytta per scenario">
+        <div className="h-72 w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={netScenarios} margin={{ left: 0, right: 16, top: 32, bottom: 24 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="scenario" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={scenarioTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => formatKr(v)} contentStyle={{ borderRadius: 8, borderColor: "var(--color-border)", background: "var(--color-card)" }} />
+              <ReferenceLine y={0} stroke="var(--color-foreground)" strokeWidth={1.5} />
+              <Bar dataKey="value" name="Finansiell nettonytta" isAnimationActive={false} maxBarSize={80}>
+                {netScenarios.map((row) => <Cell key={row.scenario} fill={row.value >= 0 ? "var(--positive)" : "var(--negative)"} />)}
+                <LabelList dataKey="value" position="top" formatter={(v: number) => formatKrCompact(v)} fill="var(--color-foreground)" fontSize={11} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
+        <p className="mt-3 text-sm text-muted-foreground">Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginalen avser bara det som skiljer alternativen åt.</p>
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[480px] text-sm">
@@ -283,10 +309,11 @@ export function Step5() {
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="year" tickLine={false} axisLine={false} />
               <YAxis
-                tickFormatter={(v: number) => `${Math.round(v / 1000)} tkr`}
+                tickFormatter={annualTicks}
                 tickLine={false}
                 axisLine={false}
-                width={70}
+                width={88}
+                tick={{ fontSize: 11 }}
               />
               <Tooltip
                 content={({ active, payload, label }) => {
@@ -381,7 +408,8 @@ export function Step5() {
             />
             <KpiCard
               label={realloc.valueFreed < 0 ? "Kostnad för ökad tid/år" : "Värde av frigjord tid/år"}
-              value={formatKr(Math.abs(realloc.valueFreed))}
+              value={formatKrCompact(Math.abs(realloc.valueFreed))}
+          exactValue={formatKr(Math.abs(realloc.valueFreed))}
               tone={realloc.valueFreed >= 0 ? "positive" : "negative"}
             />
             <KpiCard
@@ -391,7 +419,8 @@ export function Step5() {
             />
             <KpiCard
               label="Omfördelningsnytta (nuvärde)"
-              value={formatKr(reallocPeriod.totalValueFreedNPV)}
+              value={formatKrCompact(reallocPeriod.totalValueFreedNPV)}
+          exactValue={formatKr(reallocPeriod.totalValueFreedNPV)}
               tone={reallocPeriod.totalValueFreedNPV >= 0 ? "positive" : "negative"}
             />
           </div>
