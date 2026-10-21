@@ -46,7 +46,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
-import { calcYears, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
 function CostLabel() {
@@ -94,6 +94,11 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const nYears = calcYears(state);
   const costs = computeProjectCosts(state);
   const calc = scenario === "today" ? costs.todayCalc : costs.changeCalc;
+  // Work allocation follows editable rows; financial totals retain reallocated salaries.
+  const workCalc = computeCostSheet(sheet, startYear, nYears, discountRate(state));
+  const hasReallocation = scenario === "change" && sheet.staff.some((row) =>
+    "benefitType" in row && row.benefitType === "Omfördelningsnytta ↺",
+  );
   const staffMatches = matchStaffRows(state.costToday.staff, state.costChange.staff);
   const outside = itemsOutsidePeriod(sheet, startYear, nYears);
   const [loading, setLoading] = useState(false);
@@ -735,16 +740,20 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="pb-2 pr-3">År</th>
                 <th className="pb-2 pr-3">Engångskostnad</th>
-                <th className="pb-2 pr-3">Löpande + personal</th>
-                <th className="pb-2 pr-3">Total</th>
-                <th className="pb-2">Nuvärde</th>
+                {hasReallocation && <th className="pb-2 pr-3">Personal – angiven arbetstid</th>}
+                {hasReallocation && <th className="pb-2 pr-3">Personal – kvarstående lönekostnad</th>}
+                <th className="pb-2 pr-3">{hasReallocation ? "Löpande + personal (budget)" : "Löpande + personal"}</th>
+                <th className="pb-2 pr-3">{hasReallocation ? "Total budgetkostnad" : "Total"}</th>
+                <th className="pb-2">{hasReallocation ? "Nuvärde (budget)" : "Nuvärde"}</th>
               </tr>
             </thead>
             <tbody className="num">
-              {calc.perYear.map((r) => (
+              {calc.perYear.map((r, index) => (
                 <tr key={r.year} className="border-t border-border">
                   <td className="py-2 pr-3 font-medium">{r.year}</td>
                   <td className="py-2 pr-3">{formatKr(r.oneTime)}</td>
+                  {hasReallocation && <td className="py-2 pr-3">{formatKr(workCalc.perYear[index]?.staffCost ?? 0)}</td>}
+                  {hasReallocation && <td className="py-2 pr-3">{formatKr(r.staffCost)}</td>}
                   <td className="py-2 pr-3">{formatKr(r.recurring + r.staffCost)}</td>
                   <td className="py-2 pr-3">{formatKr(r.total)}</td>
                   <td className="py-2 font-semibold">{formatKr(r.npv)}</td>
@@ -763,7 +772,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         )}
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <KpiCard
-            label="Summa nuvärde (sannolikt)"
+            label={hasReallocation ? "Summa nuvärde – budget (sannolikt)" : "Summa nuvärde (sannolikt)"}
             value={formatKr(calc.npvSum)}
             tone={scenario === "today" ? "today" : "change"}
           />
