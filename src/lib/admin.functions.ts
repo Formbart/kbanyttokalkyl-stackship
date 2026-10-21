@@ -33,7 +33,11 @@ async function assertAdmin(context: {
   supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
   userId: string;
 }) {
-  await assertRole(context, "admin", "Endast administratörer har tillgång.");
+  const [admin, superadmin] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
+  ]);
+  if (admin.data !== true && superadmin.data !== true) throw new Error("Endast administratörer har tillgång.");
 }
 
 async function assertSuperAdmin(context: {
