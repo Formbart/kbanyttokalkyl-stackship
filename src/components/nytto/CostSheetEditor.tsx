@@ -480,8 +480,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         title="Personalkostnader"
         description={
           scenario === "today"
-            ? "Ange de roller och den arbetstid som går åt idag. Månadslön exkl. PO fylls i automatiskt för kända befattningar."
-            : "Omfördelningsnytta ↺ behåller motsvarande lönekostnad i nuläget. Lägre arbetstid räknas enbart som frigjord tid, inte budgetbesparing."
+            ? "Ange de roller och den arbetstid som går åt idag. Månadslön exkl. PO fylls i automatiskt för kända befattningar. Varje rad speglas automatiskt till steg 3."
+            : "Speglade rader följer nulägets befattning och lön — ändra timmar, antal och nyttotyp här. Omfördelningsnytta ↺ behåller lönekostnaden i budgeten; lägre arbetstid redovisas som frigjord tid, inte budgetbesparing."
         }
       >
         <div className="space-y-4">
@@ -934,9 +934,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                 </p>
                 <p className="mt-1.5">
                   Personalkostnad = månadslön × 12 × 1,4024 (PO-pålägg) ×
-                  tjänstgöringsgrad × antal personer. Kostnadsposter uppräknas
-                  med den årliga kostnadsökningen från sitt startår; poster som
-                  startar efter perioden räknas inte med.
+                  tjänstgöringsgrad × antal personer. Löpande kostnader och
+                  personal uppräknas med den årliga kostnadsökningen från
+                  basåret ({baseYear}); engångskostnader räknas inte upp och
+                  poster som startar efter perioden räknas inte med.
                 </p>
                 {hasReallocation && (
                   <p className="mt-1.5">
