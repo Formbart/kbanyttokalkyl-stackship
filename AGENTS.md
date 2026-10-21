@@ -13,3 +13,4 @@
 - Keep Excel year and staff row coordinates as returned metadata and link formulas to those coordinates, so varying item counts and periods cannot shift references.
 - Use useCalculationAgent for all calculation AI calls to attach current assumptions and exact position names consistently.
 - Outbound credential emails stay in authenticated TanStack server functions and require the mail API key; this stack uses Worker server functions rather than Supabase Edge Functions.
+- Run unit tests with the isolated Vitest configuration so server handlers can be tested without the framework RPC transform.
