@@ -27,6 +27,7 @@ import {
 } from "../shared";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
+  baseYearOf,
   calcYears,
   computeProjectCosts,
   discountRate,
@@ -102,6 +103,7 @@ export function Step5() {
     state.project.startYear,
     calcYears(state),
     discountRate(state),
+    baseYearOf(state),
   );
 
   const internal = qual.filter((q) => q.benefit.gynnas === "Intern nytta").length;
@@ -125,6 +127,8 @@ export function Step5() {
         totalCostToday: todayCalc.npvSum,
         totalCostChange: changeCalc.npvSum,
         financialNetBenefit: net.totalNet,
+        netBenefitInclReallocation: net.totalNetIncl,
+        baseYear: baseYearOf(state),
         breakEvenYear: net.breakEvenYear,
         freedHoursPerYear: realloc.hoursFreed,
         reallocationBenefit: reallocPeriod.totalValueFreedNPV,
@@ -152,18 +156,18 @@ export function Step5() {
 
   return (
     <div className="print-full space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Kostnad idag (nuvärde)"
           value={formatKr(todayCalc.npvSum)}
           tone="today"
-          hint={`${calcYears(state)} år, diskonterat`}
+          hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Kostnad vid förändring"
           value={formatKr(changeCalc.npvSum)}
           tone="change"
-          hint={`${calcYears(state)} år, diskonterat`}
+          hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Finansiell nettonytta"
@@ -172,15 +176,24 @@ export function Step5() {
           hint={`Intervall: ${formatKr(net.low)} – ${formatKr(net.high)}`}
         />
         <KpiCard
+          label="Nettonytta inkl. omfördelning"
+          value={formatKr(net.totalNetIncl)}
+          tone={net.totalNetIncl >= 0 ? "positive" : "negative"}
+          hint="Motsvarar mallens 'Ja'-läge – inte budgetpåverkande"
+        />
+        <KpiCard
           label="Break-even år"
           value={String(net.breakEvenYear)}
           tone={net.breakEvenYear === NO_BREAK_EVEN ? "negative" : "positive"}
+          {...(net.breakEvenYearIncl !== net.breakEvenYear
+            ? { hint: `Inkl. omfördelning: ${net.breakEvenYearIncl}` }
+            : {})}
         />
       </div>
 
       <SectionCard
         title="Kostnad idag vs vid förändring"
-        description="Summa nuvärde över kalkylperioden i tre scenarier. Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginal gäller både kostnadsposter och personal."
+        description="Summa nuvärde över kalkylperioden i tre scenarier. Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginalen avser bara det som skiljer alternativen åt."
         action={
           <AiButton onClick={() => void runReview()} loading={loading}>
             AI-granskning
@@ -339,8 +352,8 @@ export function Step5() {
         </div>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th>År</th><th>Finansiell nettonytta</th><th>Omfördelningsnytta</th><th>Ackumulerad finansiell nettonytta</th></tr></thead>
-            <tbody className="num">{net.perYear.map((r) => <tr key={r.year} className="border-t border-border"><td className="py-2">{r.year}</td><td>{formatKr(r.net)}</td><td>{formatKr(r.reallocation)}</td><td>{formatKr(r.cumulative)}</td></tr>)}</tbody>
+            <thead><tr className="text-left text-muted-foreground"><th>År</th><th>Finansiell nettonytta</th><th>Omfördelningsnytta</th><th>Ackumulerad finansiell nettonytta</th><th>Ackumulerad inkl. omfördelning</th></tr></thead>
+            <tbody className="num">{net.perYear.map((r) => <tr key={r.year} className="border-t border-border"><td className="py-2">{r.year}</td><td>{formatKr(r.net)}</td><td>{formatKr(r.reallocation)}</td><td>{formatKr(r.cumulative)}</td><td>{formatKr(r.cumulativeIncl)}</td></tr>)}</tbody>
           </table>
         </div>
         {net.breakEvenYear === NO_BREAK_EVEN && net.perYear.length > 0 && (
@@ -348,6 +361,11 @@ export function Step5() {
             Uppnås ej inom kalkylperioden
           </p>
         )}
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+          <li>Belopp anges i basårets ({baseYearOf(state)}) priser. Löpande kostnader, personal och omfördelningsnytta räknas upp med årlig kostnadsökning. Engångskostnader räknas inte upp. Nuvärdet avser basåret.</li>
+          <li>Felmarginalen avser bara det som skiljer alternativen åt.</li>
+          <li>Omfördelningsnyttan räknas upp med löneökningen (skiljer sig från mallen, som håller den konstant).</li>
+        </ul>
       </SectionCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -357,13 +375,13 @@ export function Step5() {
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <KpiCard
-              label="Frigjorda timmar/år"
-              value={`${formatNumber(realloc.hoursFreed)} h`}
+              label={realloc.hoursFreed < 0 ? "Ökad tidsåtgång/år" : "Frigjorda timmar/år"}
+              value={`${formatNumber(Math.abs(realloc.hoursFreed))} h`}
               tone={realloc.hoursFreed >= 0 ? "positive" : "negative"}
             />
             <KpiCard
-              label="Värde av frigjord tid/år"
-              value={formatKr(realloc.valueFreed)}
+              label={realloc.valueFreed < 0 ? "Kostnad för ökad tid/år" : "Värde av frigjord tid/år"}
+              value={formatKr(Math.abs(realloc.valueFreed))}
               tone={realloc.valueFreed >= 0 ? "positive" : "negative"}
             />
             <KpiCard

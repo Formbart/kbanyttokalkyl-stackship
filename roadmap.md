@@ -1,5 +1,6 @@
 # Roadmap
 
+- [x] Implementera uppladdad beräkningsspec v2 (basår, skillnadsfelmarginal, todayId-spegling, inkl.-omfördelning)
 - [x] Uppdatera årstabellen med arbetstidskostnad och separat budgetkostnad för båda nyttotyperna; verifiera ändrad tjänstegrad och lön.
 
 - [x] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.

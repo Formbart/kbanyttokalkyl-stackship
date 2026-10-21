@@ -177,19 +177,39 @@ export function Step1({
               />
             </Field>
           </div>
-          <Field
-            label="Startår"
-            hint="Styr kalkylperiodens första år i steg 2, 3 och 5."
-          >
-            <Input
-              type="number"
-              className="num max-w-40"
-              value={project.startYear}
-              onChange={(e) =>
-                updateProject({ startYear: Number(e.target.value) || 0 })
-              }
-            />
-          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Startår"
+              hint="Styr kalkylperiodens första år i steg 2, 3 och 5."
+            >
+              <Input
+                type="number"
+                className="num max-w-40"
+                value={project.startYear}
+                onChange={(e) =>
+                  updateProject({ startYear: Number(e.target.value) || 0 })
+                }
+              />
+            </Field>
+            <Field
+              label="Prisnivå/basår"
+              hint="Alla belopp anges i detta års priser och nuvärdena avser basåret. Ändras inte automatiskt."
+            >
+              <Input
+                type="number"
+                className="num max-w-40"
+                value={project.baseYear ?? project.startYear}
+                onChange={(e) =>
+                  updateProject({ baseYear: Number(e.target.value) || 0 })
+                }
+              />
+            </Field>
+          </div>
+          {project.startYear < (project.baseYear ?? project.startYear) && (
+            <WarningBanner>
+              Startåret ligger före basåret — kontrollera att prisnivån är avsedd.
+            </WarningBanner>
+          )}
         </div>
       </SectionCard>
 

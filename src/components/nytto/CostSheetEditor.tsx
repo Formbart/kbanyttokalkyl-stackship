@@ -47,7 +47,7 @@ import {
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
 import { DEFAULT_STAFF_MARGIN } from "@/lib/nyttokalkyl/types";
-import { calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { baseYearOf, calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, formatNumber, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
 function CostLabel() {
@@ -92,11 +92,12 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const key = scenario === "today" ? "costToday" : "costChange";
   const sheet = state[key];
   const startYear = state.project.startYear;
+  const baseYear = baseYearOf(state);
   const nYears = calcYears(state);
   const costs = computeProjectCosts(state);
   const calc = scenario === "today" ? costs.todayCalc : costs.changeCalc;
   // Work allocation follows editable rows; financial totals retain reallocated salaries.
-  const workCalc = computeCostSheet(sheet, startYear, nYears, discountRate(state));
+  const workCalc = computeCostSheet(sheet, startYear, nYears, discountRate(state), undefined, baseYear);
   const hasReallocation = scenario === "change" && sheet.staff.some((row) =>
     "benefitType" in row && row.benefitType === "Omfördelningsnytta ↺",
   );
@@ -131,11 +132,33 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const setStaffChange = (rows: StaffChange[]) =>
     setState((s) => ({ ...s, costChange: { ...s.costChange, staff: rows } }));
 
+  /** Fält som alltid speglas från nulägesraden till motsvarande förändringsrad. */
+  const mirroredPatch = (patch: Record<string, unknown>) => {
+    const mirrored: Record<string, unknown> = {};
+    for (const k of ["forvaltning", "positionIndex", "role", "salary"] as const)
+      if (k in patch) mirrored[k] = patch[k];
+    return mirrored;
+  };
+
   const updateStaff = (i: number, patch: Record<string, unknown>) => {
     if (scenario === "today") {
-      setStaffToday(
-        staffToday.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
-      );
+      const row = staffToday[i];
+      const mirror = mirroredPatch(patch);
+      setState((s) => ({
+        ...s,
+        costToday: {
+          ...s.costToday,
+          staff: s.costToday.staff.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+        },
+        costChange: row && Object.keys(mirror).length > 0
+          ? {
+              ...s.costChange,
+              staff: s.costChange.staff.map((c) =>
+                c.todayId === row.id ? { ...c, ...mirror } : c,
+              ),
+            }
+          : s.costChange,
+      }));
     } else {
       setStaffChange(
         staffChange.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
@@ -143,15 +166,54 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     }
   };
 
-  const addStaff = () =>
-    scenario === "today"
-      ? setStaffToday([...staffToday, emptyStaffToday()])
-      : setStaffChange([...staffChange, emptyStaffChange()]);
+  const addStaff = () => {
+    if (scenario === "today") {
+      const row = emptyStaffToday();
+      const mirror: StaffChange = {
+        ...emptyStaffChange(row.id),
+        forvaltning: row.forvaltning,
+        positionIndex: row.positionIndex,
+        role: row.role,
+        salary: row.salary,
+        hours: row.hours,
+        count: row.count,
+      };
+      setState((s) => ({
+        ...s,
+        costToday: { ...s.costToday, staff: [...s.costToday.staff, row] },
+        costChange: { ...s.costChange, staff: [...s.costChange.staff, mirror] },
+      }));
+    } else {
+      setStaffChange([...staffChange, emptyStaffChange()]);
+    }
+  };
 
-  const removeStaff = (i: number) =>
-    scenario === "today"
-      ? setStaffToday(staffToday.filter((_, idx) => idx !== i))
-      : setStaffChange(staffChange.filter((_, idx) => idx !== i));
+  const removeStaff = (i: number) => {
+    if (scenario === "today") {
+      const row = staffToday[i];
+      setState((s) => ({
+        ...s,
+        costToday: { ...s.costToday, staff: s.costToday.staff.filter((_, idx) => idx !== i) },
+        costChange: {
+          ...s.costChange,
+          staff: s.costChange.staff.filter((c) => c.todayId !== row?.id),
+        },
+      }));
+    } else {
+      const row = staffChange[i];
+      if (row?.todayId != null) return; // speglade rader tas bort från nuläget
+      setStaffChange(staffChange.filter((_, idx) => idx !== i));
+    }
+  };
+
+  /** Avveckla en speglad rad: 0 timmar, finansiell nytta, motivering krävs. */
+  const retireStaff = (i: number) => {
+    const row = staffChange[i];
+    if (!row) return;
+    updateStaff(i, { hours: 0, benefitType: "Finansiell nytta 💰" });
+    if (!row.desc.trim())
+      toast.info("Ange en motivering till avvecklingen i beskrivningsfältet.");
+  };
 
   const suggestCosts = async () => {
     setLoading(true);
@@ -193,17 +255,28 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     }
     if (s.staff?.length) {
       if (scenario === "today") {
-        setStaffToday([
-          ...staffToday,
-          ...s.staff.map((r) => ({
-            ...emptyStaffToday(),
-            role: r.role ?? "Övrig personalresurs",
-            salary: Number(r.salary) || 0,
-            hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
-            count: r.count == null ? 1 : Number(r.count) || 0,
-            desc: r.desc ?? "",
-          })),
-        ]);
+        const rows = s.staff.map((r) => ({
+          ...emptyStaffToday(),
+          role: r.role ?? "Övrig personalresurs",
+          salary: Number(r.salary) || 0,
+          hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+          count: r.count == null ? 1 : Number(r.count) || 0,
+          desc: r.desc ?? "",
+        }));
+        const mirrors: StaffChange[] = rows.map((row) => ({
+          ...emptyStaffChange(row.id),
+          forvaltning: row.forvaltning,
+          positionIndex: row.positionIndex,
+          role: row.role,
+          salary: row.salary,
+          hours: row.hours,
+          count: row.count,
+        }));
+        setState((prev) => ({
+          ...prev,
+          costToday: { ...prev.costToday, staff: [...prev.costToday.staff, ...rows] },
+          costChange: { ...prev.costChange, staff: [...prev.costChange.staff, ...mirrors] },
+        }));
       } else {
         setStaffChange([
           ...staffChange,
@@ -228,7 +301,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     <div className="space-y-6">
       <SectionCard
         title="Kostnadsposter"
-        description={scenario === "today" ? "Här anges bara kostnader som finns i nuläget och som finns kvar om förändringen inte genomförs. Investeringar och kostnader för det nya arbetssättet läggs i Kostnad förändring." : "Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad."}
+        description={(scenario === "today" ? "Här anges bara kostnader som finns i nuläget och som finns kvar om förändringen inte genomförs. Investeringar och kostnader för det nya arbetssättet läggs i Kostnad förändring." : "Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad.") + ` Ange belopp i ${baseYear}-års priser.`}
         action={
           <AiButton onClick={() => void suggestCosts()} loading={loading}>
             Föreslå kostnader med AI
@@ -237,6 +310,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       >
         {scenario === "today" && sheet.items.some((it) => it.type === "Engångskostnad" && it.startYear !== null && it.startYear >= startYear) && (
           <WarningBanner>Kontrollera engångskostnaden: investeringar för det nya arbetssättet hör till Kostnad förändring.</WarningBanner>
+        )}
+        {startYear < baseYear && (
+          <WarningBanner>Startåret ({startYear}) ligger före basåret ({baseYear}) — kontrollera prisnivån i steg 1.</WarningBanner>
         )}
         {suggestion && (
           <div className="mb-5 space-y-3 rounded-xl border border-brand/30 bg-brand-soft p-4">
@@ -404,8 +480,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         title="Personalkostnader"
         description={
           scenario === "today"
-            ? "Ange de roller och den arbetstid som går åt idag. Månadslön exkl. PO fylls i automatiskt för kända befattningar."
-            : "Omfördelningsnytta ↺ behåller motsvarande lönekostnad i nuläget. Lägre arbetstid räknas enbart som frigjord tid, inte budgetbesparing."
+            ? "Ange de roller och den arbetstid som går åt idag. Månadslön exkl. PO fylls i automatiskt för kända befattningar. Varje rad speglas automatiskt till steg 3."
+            : "Speglade rader följer nulägets befattning och lön — ändra timmar, antal och nyttotyp här. Omfördelningsnytta ↺ behåller lönekostnaden i budgeten; lägre arbetstid redovisas som frigjord tid, inte budgetbesparing."
         }
       >
         <div className="space-y-4">
@@ -420,30 +496,72 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             const forvaltning = row.forvaltning ?? FORVALTNING_OVRIGT;
             const isOvrigt = forvaltning === FORVALTNING_OVRIGT;
             const positionList = personalData[forvaltning] ?? [];
+            const mirrored =
+              scenario === "change" && (row as StaffChange).todayId != null;
+            const isNewResource = scenario === "change" && !mirrored;
+            const retired =
+              mirrored &&
+              row.hours === 0 &&
+              (row as StaffChange).benefitType === "Finansiell nytta 💰";
             const salaryLocked =
-              !isOvrigt &&
+              mirrored ||
+              (!isOvrigt &&
               row.positionIndex !== null &&
               row.positionIndex !== undefined &&
-              positionList.length > 0;
+              positionList.length > 0);
+            const increasedTime =
+              mirrored &&
+              baseline &&
+              row.hours * count > baseline.hours * (baseline.count ?? 1);
             return (
-              <div key={i} className="rounded-xl border border-border p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-brand-dark">
+              <div key={scenario === "today" ? (row as StaffToday).id : ((row as StaffChange).todayId ?? `ny-${i}`)} className="rounded-xl border border-border p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-brand-dark">
                     Rad {i + 1}
+                    {mirrored && (
+                      <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-dark">
+                        Speglad från nuläget
+                      </span>
+                    )}
+                    {isNewResource && (
+                      <span className="rounded-full bg-change/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-change">
+                        Ny resurs
+                      </span>
+                    )}
+                    {retired && (
+                      <span className="rounded-full bg-negative/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-negative">
+                        Avvecklas
+                      </span>
+                    )}
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Ta bort personalrad"
-                    className="no-print text-negative"
-                    onClick={() => removeStaff(i)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {mirrored && !retired && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="no-print text-xs text-muted-foreground"
+                        onClick={() => retireStaff(i)}
+                      >
+                        Avvecklas
+                      </Button>
+                    )}
+                    {(scenario === "today" || isNewResource) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Ta bort personalrad"
+                        className="no-print text-negative"
+                        onClick={() => removeStaff(i)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <Field label="Förvaltning">
+                  <Field label="Förvaltning" {...(mirrored ? { hint: "Ändras i nuläget (steg 2)" } : {})}>
                     <Select
+                      disabled={mirrored}
                       value={row.forvaltning ?? FORVALTNING_OVRIGT}
                       onValueChange={(v) =>
                         updateStaff(i, {
@@ -469,9 +587,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Befattning">
+                  <Field label="Befattning" {...(mirrored ? { hint: "Ändras i nuläget (steg 2)" } : {})}>
                     {isOvrigt ? (
                       <Select
+                        disabled={mirrored}
                         value={row.role}
                         onValueChange={(v) => {
                           const salary = ROLE_SALARIES[v];
@@ -502,6 +621,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </p>
                     ) : (
                       <Select
+                        disabled={mirrored}
                         value={
                           row.positionIndex === null ||
                           row.positionIndex === undefined
@@ -548,9 +668,11 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                   <Field
                     label="Månadslön exkl. PO"
                     hint={
-                      salaryLocked
-                        ? `Hämtad från befattningslistan: ${formatKr(row.salary || 0)}/mån per person`
-                        : `Heltidslön: ${formatKr(row.salary || 0)}/mån per person`
+                      mirrored
+                        ? `Lönen ändras i nuläget (steg 2). Ange belopp i ${baseYear}-års priser.`
+                        : salaryLocked
+                          ? `Hämtad från befattningslistan: ${formatKr(row.salary || 0)}/mån per person i ${baseYear}-års priser`
+                          : `Heltidslön: ${formatKr(row.salary || 0)}/mån per person i ${baseYear}-års priser`
                     }
                   >
                     <Input
@@ -650,12 +772,24 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     </Field>
                   )}
                 </div>
+                {increasedTime && baseline && (
+                  <p className="mt-3 rounded-lg bg-change/10 px-3 py-2 text-xs text-change">
+                    Ökad tidsåtgång: {formatNumber(row.hours * count - baseline.hours * (baseline.count ?? 1))} h fler än i nuläget.
+                  </p>
+                )}
+                {retired && !row.desc.trim() && (
+                  <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-negative">
+                    Motivering krävs — beskriv varför resursen avvecklas.
+                  </p>
+                )}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <Field
                     label={
                       scenario === "today"
                         ? "Arbetsbeskrivning"
-                        : "Vad görs med frigjord tid?"
+                        : retired
+                          ? "Motivering till avveckling"
+                          : "Vad görs med frigjord tid?"
                     }
                   >
                     <Textarea
@@ -693,7 +827,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         </Button>
 
         <div className="mt-6 grid max-w-xl gap-4 sm:grid-cols-2">
-          <Field label="Årlig kostnadsökning (%)" hint="Drift räknas upp från postens startår; personal från kalkylperiodens första år.">
+          <Field label="Årlig kostnadsökning (%)" hint={`Löpande kostnader och personal räknas upp från basåret (${baseYear}). Engångskostnader räknas inte upp.`}>
             <Input
               type="number"
               className="num"
@@ -702,7 +836,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
             />
           </Field>
-          <Field label="Felmarginal personal (%)" hint="Osäkerhet i personalkostnaderna, används i bästa/sämsta scenario.">
+          <Field label="Felmarginal personal (%)" hint="Slår bara på det som skiljer alternativen åt — oförändrade och omfördelade rader bidrar inte.">
             <Input
               type="number"
               min={0}
@@ -724,7 +858,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
 
       <SectionCard
         title={`Beräknad kostnad ${startYear}–${startYear + nYears - 1}`}
-        description={`Nuvärde beräknas med ${discountRate(state) * 100} % diskonteringsränta från kalkylperiodens första år.`}
+        description={`Nuvärde beräknas med ${discountRate(state) * 100} % diskonteringsränta och avser basåret ${baseYear}.`}
       >
         {scenario === "today" ? (
           <div className="no-print mb-4 flex flex-wrap items-center gap-3">
@@ -800,9 +934,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                 </p>
                 <p className="mt-1.5">
                   Personalkostnad = månadslön × 12 × 1,4024 (PO-pålägg) ×
-                  tjänstgöringsgrad × antal personer. Kostnadsposter uppräknas
-                  med den årliga kostnadsökningen från sitt startår; poster som
-                  startar efter perioden räknas inte med.
+                  tjänstgöringsgrad × antal personer. Löpande kostnader och
+                  personal uppräknas med den årliga kostnadsökningen från
+                  basåret ({baseYear}); engångskostnader räknas inte upp och
+                  poster som startar efter perioden räknas inte med.
                 </p>
                 {hasReallocation && (
                   <p className="mt-1.5">
