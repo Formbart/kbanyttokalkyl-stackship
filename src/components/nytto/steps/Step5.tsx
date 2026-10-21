@@ -257,7 +257,10 @@ export function Step5() {
               <ReferenceLine y={0} stroke="var(--color-foreground)" strokeWidth={1.5} />
               <Bar dataKey="value" name="Finansiell nettonytta" isAnimationActive={false} maxBarSize={80}>
                 {netScenarios.map((row) => <Cell key={row.scenario} fill={row.value >= 0 ? "var(--positive)" : "var(--negative)"} />)}
-                <LabelList dataKey="value" position="top" formatter={(v: number) => formatKrCompact(v)} fill="var(--color-foreground)" fontSize={11} />
+                <LabelList dataKey="value" content={({ x, y, width, height, value }) => {
+                  const number = Number(value);
+                  return <text x={Number(x) + Number(width) / 2} y={Number(y) + (number < 0 ? Number(height) + 14 : -8)} textAnchor="middle" fill="var(--color-foreground)" fontSize={10}>{formatKrCompact(number)}</text>;
+                }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
