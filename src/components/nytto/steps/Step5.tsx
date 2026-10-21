@@ -67,10 +67,12 @@ export function Step5() {
   const qual = computeQualitative(state);
   const empty = !hasAnyData(state);
   const changeLabel = "Kostnad vid förändring";
+  // Scenarios are judged for the project: worst = low today cost and high change cost.
+  // Matches net.low / net.high so the chart and the interval tell the same story.
   const scenarioData = [
     {
       scenario: "Sämsta",
-      idag: Math.round(todayCalc.worst),
+      idag: Math.round(todayCalc.best),
       forandring: Math.round(changeCalc.worst),
     },
     {
@@ -80,7 +82,7 @@ export function Step5() {
     },
     {
       scenario: "Bästa",
-      idag: Math.round(todayCalc.best),
+      idag: Math.round(todayCalc.worst),
       forandring: Math.round(changeCalc.best),
     },
   ];
@@ -178,7 +180,7 @@ export function Step5() {
 
       <SectionCard
         title="Kostnad idag vs vid förändring"
-        description="Summa nuvärde över kalkylperioden i tre scenarier."
+        description="Summa nuvärde över kalkylperioden i tre scenarier. Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginalen gäller kostnadsposter, inte personal."
         action={
           <AiButton onClick={() => void runReview()} loading={loading}>
             AI-granskning
