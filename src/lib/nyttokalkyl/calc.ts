@@ -64,106 +64,104 @@ export interface SheetCalc {
   worst: number;
 }
 
-export function computeCostSheet(
-  sheet: CostSheet<StaffToday | StaffChange>,
-  startYear: number,
-  calculationYears: number = DEFAULT_CALCULATION_YEARS,
-): SheetCalc {
-  const n = clampYears(calculationYears);
-  const staffBase = sheet.staff.reduce(
-    (sum, s) => sum + staffAnnualCost(s.salary, s.hours, s.count ?? 1),
-    0,
-  );
-  const perYear: YearRow[] = years(startYear, n).map((year, i) => {
-    const growthFactor = Math.pow(1 + (sheet.growth || 0) / 100, i);
-    const oneTime = sheet.items
-      .filter((it) => it.type === "Engångskostnad" && it.startYear === year)
-      .reduce((s, it) => s + (it.costPerYear || 0), 0);
-    const recurring =
-      sheet.items
-        .filter(
-          (it) =>
-            it.type !== "Engångskostnad" &&
-            it.startYear !== null &&
-            it.startYear <= year,
-        )
-        .reduce((s, it) => s + (it.costPerYear || 0), 0) * growthFactor;
-    const staffCost = staffBase * growthFactor;
-    const total = oneTime + recurring + staffCost;
-    const discount = Math.pow(1 + DISCOUNT_RATE, -i);
-    return { year, oneTime, recurring, staffCost, total, npv: total * discount };
-  });
-
-  const npvSum = perYear.reduce((s, r) => s + r.npv, 0);
-  const marginSum = sheet.items.reduce((s, it) => {
-    const base = ((it.margin || 0) / 100) * (it.costPerYear || 0);
-    return s + (it.type === "Engångskostnad" ? base : base * n);
-  }, 0);
-
-  return {
-    perYear,
-    npvSum,
-    marginSum,
-    best: npvSum - marginSum,
-    worst: npvSum + marginSum,
-  };
-}
-
-export interface Reallocation {
-  hoursFreed: number;
-  valueFreed: number;
+export function discountRate(state: AppState): number {
+  const rate = state.project.discountRate;
+  return typeof rate === "number" && Number.isFinite(rate) && rate >= 0 ? rate / 100 : DISCOUNT_RATE;
 }
 
 const normalizeRole = (role: string) => (role || "").trim().toLowerCase();
 
-export function computeReallocation(
-  today: StaffToday[],
-  change: StaffChange[],
-): Reallocation {
+/** Match every change row once, by department/role first, then row position. */
+export function matchStaffRows(today: StaffToday[], change: (StaffToday | StaffChange)[]): (number | null)[] {
+  const used = new Set<number>();
+  const matches: (number | null)[] = change.map(() => null);
+  change.forEach((c, i) => {
+    const idx = today.findIndex((t, j) => !used.has(j) && normalizeRole(t.role) !== "" &&
+      normalizeRole(t.role) === normalizeRole(c.role) &&
+      (!t.forvaltning || !c.forvaltning || t.forvaltning === c.forvaltning));
+    if (idx >= 0) { matches[i] = idx; used.add(idx); }
+  });
+  change.forEach((_, i) => {
+    if (matches[i] === null && today[i] && !used.has(i)) { matches[i] = i; used.add(i); }
+  });
+  return matches;
+}
+
+export function computeCostSheet(
+  sheet: CostSheet<StaffToday | StaffChange>,
+  startYear: number,
+  calculationYears: number = DEFAULT_CALCULATION_YEARS,
+  rate: number = DISCOUNT_RATE,
+  baseline?: CostSheet<StaffToday>,
+): SheetCalc {
+  const matches = matchStaffRows(baseline?.staff ?? [], sheet.staff);
+  let marginSum = 0;
+  const perYear: YearRow[] = years(startYear, calculationYears).map((year, i) => {
+    let oneTime = 0;
+    let recurring = 0;
+    let annualMargin = 0;
+    sheet.items.forEach((it) => {
+      if (it.startYear === null || it.startYear > year) return;
+      const value = it.type === "Engångskostnad"
+        ? (it.startYear === year ? it.costPerYear || 0 : 0)
+        : (it.costPerYear || 0) * Math.pow(1 + (sheet.growth || 0) / 100, year - it.startYear);
+      if (it.type === "Engångskostnad") oneTime += value;
+      else recurring += value;
+      annualMargin += Math.abs(value) * (it.margin || 0) / 100;
+    });
+    const staffCost = sheet.staff.reduce((sum, c, j) => {
+      const match = matches[j];
+      const t = match == null ? undefined : baseline?.staff[match];
+      const retained = "benefitType" in c && c.benefitType === "Omfördelningsnytta ↺" && t;
+      const person = retained ? t : c;
+      const growth = retained ? baseline?.growth ?? 0 : sheet.growth;
+      return sum + staffAnnualCost(person.salary, person.hours, person.count ?? 1) * Math.pow(1 + (growth || 0) / 100, i);
+    }, 0);
+    const total = oneTime + recurring + staffCost;
+    const discount = Math.pow(1 + rate, -i);
+    marginSum += annualMargin * discount;
+    return { year, oneTime, recurring, staffCost, total, npv: total * discount };
+  });
+  const npvSum = perYear.reduce((sum, r) => sum + r.npv, 0);
+  return { perYear, npvSum, marginSum, best: npvSum - marginSum, worst: npvSum + marginSum };
+}
+
+/** The single scenario calculation entry point, including retained salaries. */
+export function computeProjectCosts(state: AppState) {
+  const rate = discountRate(state);
+  const n = calcYears(state);
+  return {
+    todayCalc: computeCostSheet(state.costToday, state.project.startYear, n, rate),
+    changeCalc: computeCostSheet(state.costChange, state.project.startYear, n, rate, state.costToday),
+  };
+}
+
+export interface Reallocation { hoursFreed: number; valueFreed: number; }
+
+export function computeReallocation(today: StaffToday[], change: StaffChange[]): Reallocation {
+  const matches = matchStaffRows(today, change);
   let hoursFreed = 0;
   let valueFreed = 0;
-  const usedToday = new Set<number>();
-
-  // Matcha i första hand på roll (samma yrkesroll idag och vid förändring),
-  // annars på radposition — annars jämförs raden mot noll.
   change.forEach((c, i) => {
     if (c.benefitType !== "Omfördelningsnytta ↺") return;
-
-    let matchIndex = today.findIndex(
-      (t, idx) =>
-        !usedToday.has(idx) &&
-        normalizeRole(t.role).length > 0 &&
-        normalizeRole(t.role) === normalizeRole(c.role),
-    );
-    if (matchIndex === -1 && today[i] && !usedToday.has(i)) matchIndex = i;
-    if (matchIndex !== -1) usedToday.add(matchIndex);
-
-    const t = matchIndex === -1 ? null : today[matchIndex]!;
-    hoursFreed +=
-      (t?.hours || 0) * (t?.count ?? 1) - (c.hours || 0) * (c.count ?? 1);
-    valueFreed +=
-      (t ? staffAnnualCost(t.salary, t.hours, t.count ?? 1) : 0) -
-      staffAnnualCost(c.salary, c.hours, c.count ?? 1);
+    const match = matches[i];
+    const t = match == null ? undefined : today[match];
+    if (!t) return;
+    const freed = (t.hours || 0) * (t.count ?? 1) - (c.hours || 0) * (c.count ?? 1);
+    hoursFreed += freed;
+    valueFreed += staffAnnualCost(t.salary, freed, 1);
   });
   return { hoursFreed, valueFreed };
 }
 
-/** Omfördelningsnyttan summerad över hela kalkylperioden (samma serie som i computeNetBenefit). */
 export function computeReallocationOverPeriod(
-  hoursFreed: number,
-  valueFreed: number,
-  costChangeGrowth: number,
-  startYear: number,
-  calculationYears: number,
+  hoursFreed: number, valueFreed: number, growth: number, startYear: number,
+  calculationYears: number, rate: number = DISCOUNT_RATE,
 ): { totalHoursFreed: number; totalValueFreedNPV: number } {
-  let totalValueFreedNPV = 0;
-  years(startYear, calculationYears).forEach((_, i) => {
-    totalValueFreedNPV +=
-      valueFreed *
-      Math.pow(1 + (costChangeGrowth || 0) / 100, i) *
-      Math.pow(1 + DISCOUNT_RATE, -i);
-  });
-  return { totalHoursFreed: hoursFreed * calculationYears, totalValueFreedNPV };
+  const n = clampYears(calculationYears);
+  const totalValueFreedNPV = years(startYear, n).reduce((sum, _, i) =>
+    sum + valueFreed * Math.pow(1 + (growth || 0) / 100, i) / Math.pow(1 + rate, i), 0);
+  return { totalHoursFreed: hoursFreed * n, totalValueFreedNPV };
 }
 
 export function movementLabel(movement: number): string {
@@ -175,8 +173,8 @@ export function movementLabel(movement: number): string {
     "Mycket stor förflyttning",
   ];
   const abs = Math.min(Math.abs(movement), 4);
-  if (movement === 0) return grades[0]!;
-  if (movement > 0) return grades[abs]!;
+  if (movement === 0) return grades[0] ?? "Ingen förflyttning";
+  if (movement > 0) return grades[abs] ?? "";
   const negatives = [
     "Ingen försämring",
     "Liten försämring",
@@ -184,7 +182,7 @@ export function movementLabel(movement: number): string {
     "Stor försämring",
     "Mycket stor försämring",
   ];
-  return negatives[abs]!;
+  return negatives[abs] ?? "";
 }
 
 export interface QualRow {
@@ -219,46 +217,32 @@ export function computeQualitative(state: AppState): QualRow[] {
 export interface NetRow {
   year: number;
   net: number;
+  reallocation: number;
   cumulative: number;
 }
 
+export const NO_BREAK_EVEN = "Uppnås ej inom kalkylperioden";
 export interface NetBenefit {
   perYear: NetRow[];
   totalNet: number;
-  breakEvenYear: number | "Aldrig";
+  low: number;
+  high: number;
+  breakEvenYear: number | typeof NO_BREAK_EVEN;
 }
 
-export function computeNetBenefit(
-  state: AppState,
-  todayCalc: SheetCalc,
-  changeCalc: SheetCalc,
-  includeRealloc: boolean,
-): NetBenefit {
-  const { valueFreed } = computeReallocation(
-    state.costToday.staff,
-    state.costChange.staff,
-  );
+export function computeNetBenefit(state: AppState, todayCalc: SheetCalc, changeCalc: SheetCalc): NetBenefit {
+  const { valueFreed } = computeReallocation(state.costToday.staff, state.costChange.staff);
   let cumulative = 0;
   let breakEvenYear: number | null = null;
   const perYear = years(state.project.startYear, calcYears(state)).map((year, i) => {
-    const discount = Math.pow(1 + DISCOUNT_RATE, -i);
-    const reallocNPV = includeRealloc
-      ? valueFreed *
-        Math.pow(1 + (state.costChange.growth || 0) / 100, i) *
-        discount
-      : 0;
-    const adjustedChange = (changeCalc.perYear[i]?.npv ?? 0) - reallocNPV;
-    const net = (todayCalc.perYear[i]?.npv ?? 0) - adjustedChange;
+    const reallocation = valueFreed * Math.pow(1 + (state.costToday.growth || 0) / 100, i) / Math.pow(1 + discountRate(state), i);
+    const net = (todayCalc.perYear[i]?.npv ?? 0) - (changeCalc.perYear[i]?.npv ?? 0);
     cumulative += net;
-    if (breakEvenYear === null && cumulative >= 0) breakEvenYear = year;
-    return { year, net, cumulative };
+    if (breakEvenYear === null && cumulative > 0) breakEvenYear = year;
+    return { year, net, reallocation, cumulative };
   });
-
-  return {
-    perYear,
-    totalNet: cumulative,
-    breakEvenYear: breakEvenYear ?? "Aldrig",
-  };
+  return { perYear, totalNet: cumulative, low: todayCalc.best - changeCalc.worst,
+    high: todayCalc.worst - changeCalc.best, breakEvenYear: breakEvenYear ?? NO_BREAK_EVEN };
 }
 
 export function formatKr(value: number): string {
