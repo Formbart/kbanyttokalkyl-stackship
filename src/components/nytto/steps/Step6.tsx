@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { AiButton, EmptyState, Field, SectionCard } from "../shared";
+import { AiButton, EmptyState, FactCheckBadge, Field, SectionCard } from "../shared";
 import { SurveyTab } from "../SurveyTab";
 import { SurveyResultsTab } from "../SurveyResultsTab";
 
@@ -22,6 +22,7 @@ export function Step6() {
   const callAgent = useCalculationAgent();
   const { state, setFollowUp } = useNyttokalkyl();
   const benefits = state.project.benefits;
+  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean; report?: string }>>({});
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   const suggestFollowUp = async (index: number) => {
@@ -44,6 +45,7 @@ export function Step6() {
       toast.error(res.error);
       return;
     }
+    setFactChecks((s) => ({ ...s, [index]: { factChecked: res.factChecked, report: res.factCheckReport } }));
     const d = res.data ?? {};
     setFollowUp(index, {
       ...(d.effektmal ? { effektmal: d.effektmal } : {}),
@@ -96,6 +98,7 @@ export function Step6() {
                 </AiButton>
               }
             >
+              <FactCheckBadge {...factChecks[i]} />
               <Tabs defaultValue="plan">
                 <TabsList className="no-print mb-4">
                   <TabsTrigger value="plan">Uppföljningsplan</TabsTrigger>

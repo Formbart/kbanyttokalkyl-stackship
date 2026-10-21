@@ -191,6 +191,7 @@ export function Step5() {
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="scenario" tickLine={false} axisLine={false} />
               <YAxis
+                domain={[0, "dataMax"]}
                 tickFormatter={(v: number) => `${Math.round(v / 1000)} tkr`}
                 tickLine={false}
                 axisLine={false}
@@ -313,7 +314,7 @@ export function Step5() {
                 isAnimationActive={false}
                 legendType="none"
               />
-              <Bar dataKey="arlig" name="Årlig förändring" barSize={28} isAnimationActive={false}>
+              <Bar dataKey="arlig" name="Finansiell nettonytta" fill="var(--negative)" barSize={28} isAnimationActive={false}>
                 {cumulativeData.map((d) => (
                   <Cell
                     key={d.year}
@@ -323,8 +324,8 @@ export function Step5() {
               </Bar>
               <Line
                 dataKey="ackumulerat"
-                name="Ackumulerat"
-                stroke="var(--color-brand)"
+                name="Ackumulerad finansiell nettonytta"
+                stroke="var(--brand)"
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
                 type="monotone"

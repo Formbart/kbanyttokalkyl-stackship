@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { AiButton, EmptyState, SectionCard } from "../shared";
+import { AiButton, EmptyState, FactCheckBadge, SectionCard } from "../shared";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import { computeQualitative, movementLabel } from "@/lib/nyttokalkyl/calc";
 import {
@@ -25,6 +25,7 @@ export function Step4() {
   const callAgent = useCalculationAgent();
   const { state, setState, setQualRating } = useNyttokalkyl();
   const rows = computeQualitative(state);
+  const [factChecks, setFactChecks] = useState<Record<number, { factChecked?: boolean; report?: string }>>({});
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   const setRank = (index: number, rank: Rank) =>
@@ -57,6 +58,7 @@ export function Step4() {
       toast.error(res.error);
       return;
     }
+    setFactChecks((s) => ({ ...s, [index]: { factChecked: res.factChecked, report: res.factCheckReport } }));
     const d = res.data;
     if (!d) return;
     const current = Math.min(5, Math.max(1, Number(d.current) || 3));
@@ -118,6 +120,7 @@ export function Step4() {
               </AiButton>
             </div>
 
+            <FactCheckBadge {...factChecks[row.index]} />
             <div className="mt-5 grid gap-6 md:grid-cols-2">
               <div>
                 <div className="mb-2 flex items-center justify-between text-sm">

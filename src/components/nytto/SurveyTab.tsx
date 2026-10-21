@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AiButton, Field } from "./shared";
+import { AiButton, FactCheckBadge, Field } from "./shared";
 import { buildFormsText, downloadSurveyDocx } from "@/lib/nyttokalkyl/formsExport";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
@@ -103,6 +103,7 @@ export function SurveyTab({
   const { state, setSurvey } = useNyttokalkyl();
   const survey = state.surveys[index];
   const followUp = state.followUp[index];
+  const [factCheck, setFactCheck] = useState<{ factChecked?: boolean; report?: string }>({});
   const [loading, setLoading] = useState(false);
   const [questionCount, setQuestionCount] = useState(6);
   const [printing, setPrinting] = useState(false);
@@ -129,6 +130,7 @@ export function SurveyTab({
       toast.error(res.error);
       return;
     }
+    setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     const d = res.data;
     setSurvey(index, {
       title: d?.title ?? "Enkät",
@@ -196,6 +198,7 @@ export function SurveyTab({
 
   return (
     <div className="space-y-5">
+      <FactCheckBadge {...factCheck} />
       <div className="no-print flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
