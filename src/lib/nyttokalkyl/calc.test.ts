@@ -74,6 +74,24 @@ describe("Klara and financial separation", () => {
 });
 
 describe("assumptions and uncertainty", () => {
+  it("updates work costs for all four years while preserving reallocation budget costs", () => {
+    const state = initialState();
+    state.project.startYear = 2026;
+    state.project.calculationYears = 4;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    state.costChange.staff = [{ ...emptyStaffChange(), salary: 40000, hours: 880 }];
+    const work = computeCostSheet(state.costChange, 2026, 4);
+    expect(work.perYear.map((r) => r.year)).toEqual([2026, 2027, 2028, 2029]);
+    work.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(336576 * 1.02 ** i, 5));
+    computeProjectCosts(state).changeCalc.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(538521.6 * 1.02 ** i, 5));
+  });
+  it("updates budget costs for financial rows for all four years", () => {
+    const state = initialState();
+    state.project.calculationYears = 4;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    state.costChange.staff = [{ ...emptyStaffChange(), salary: 40000, hours: 880, benefitType: "Finansiell nytta 💰" }];
+    computeProjectCosts(state).changeCalc.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(336576 * 1.02 ** i, 5));
+  });
   it("indexes 220000 from its own 2027 start to 224400 in 2028", () => {
     const sheet = { growth: 2, staff: [], items: [{ ...emptyCostItem(2027), costPerYear: 220000 }] };
     expect(computeCostSheet(sheet, 2026, 4).perYear.map((r) => r.recurring)).toEqual([0, 220000, 224400, 228888]);
