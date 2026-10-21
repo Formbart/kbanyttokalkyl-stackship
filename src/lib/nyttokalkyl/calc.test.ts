@@ -168,7 +168,8 @@ describe("migration of old saved calculations", () => {
     delete legacy.project.baseYear;
     legacy.costToday.staff.forEach((r) => delete (r as Partial<typeof r>).id);
     legacy.costChange.staff.forEach((r) => delete (r as Partial<typeof r>).todayId);
-    const before = computeNetBenefit(legacy, ...Object.values(computeProjectCosts(legacy)) as never);
+    const legacyCosts = computeProjectCosts(legacy);
+    const before = computeNetBenefit(legacy, legacyCosts.todayCalc, legacyCosts.changeCalc);
     const migrated = migrateState(legacy);
     const costs = computeProjectCosts(migrated);
     const after = computeNetBenefit(migrated, costs.todayCalc, costs.changeCalc);
