@@ -27,6 +27,7 @@ import {
 } from "../shared";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
+  baseYearOf,
   calcYears,
   computeProjectCosts,
   discountRate,
@@ -102,6 +103,7 @@ export function Step5() {
     state.project.startYear,
     calcYears(state),
     discountRate(state),
+    baseYearOf(state),
   );
 
   const internal = qual.filter((q) => q.benefit.gynnas === "Intern nytta").length;
@@ -125,6 +127,8 @@ export function Step5() {
         totalCostToday: todayCalc.npvSum,
         totalCostChange: changeCalc.npvSum,
         financialNetBenefit: net.totalNet,
+        netBenefitInclReallocation: net.totalNetIncl,
+        baseYear: baseYearOf(state),
         breakEvenYear: net.breakEvenYear,
         freedHoursPerYear: realloc.hoursFreed,
         reallocationBenefit: reallocPeriod.totalValueFreedNPV,
@@ -152,18 +156,18 @@ export function Step5() {
 
   return (
     <div className="print-full space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Kostnad idag (nuvärde)"
           value={formatKr(todayCalc.npvSum)}
           tone="today"
-          hint={`${calcYears(state)} år, diskonterat`}
+          hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Kostnad vid förändring"
           value={formatKr(changeCalc.npvSum)}
           tone="change"
-          hint={`${calcYears(state)} år, diskonterat`}
+          hint={`${calcYears(state)} år, diskonterat till ${baseYearOf(state)}`}
         />
         <KpiCard
           label="Finansiell nettonytta"
@@ -172,9 +176,20 @@ export function Step5() {
           hint={`Intervall: ${formatKr(net.low)} – ${formatKr(net.high)}`}
         />
         <KpiCard
+          label="Nettonytta inkl. omfördelning"
+          value={formatKr(net.totalNetIncl)}
+          tone={net.totalNetIncl >= 0 ? "positive" : "negative"}
+          hint="Motsvarar mallens 'Ja'-läge – inte budgetpåverkande"
+        />
+        <KpiCard
           label="Break-even år"
           value={String(net.breakEvenYear)}
           tone={net.breakEvenYear === NO_BREAK_EVEN ? "negative" : "positive"}
+          hint={
+            net.breakEvenYearIncl !== net.breakEvenYear
+              ? `Inkl. omfördelning: ${net.breakEvenYearIncl}`
+              : undefined
+          }
         />
       </div>
 
