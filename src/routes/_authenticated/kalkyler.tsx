@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FolderOpen, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Link2, Pencil, Trash2 } from "lucide-react";
+import { ShareDialog } from "@/components/nytto/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
@@ -174,6 +175,11 @@ function SavedCalculationsPage() {
                   >
                     <Pencil className="size-4" />
                   </Button>
+                  <ShareDialog id={item.id} title={item.title}>
+                    <Button type="button" variant="ghost" size="icon" aria-label={`Dela ${item.title}`}>
+                      <Link2 className="size-4" />
+                    </Button>
+                  </ShareDialog>
                   <Button
                     type="button"
                     variant="outline"
