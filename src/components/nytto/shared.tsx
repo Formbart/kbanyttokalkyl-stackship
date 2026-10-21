@@ -54,12 +54,14 @@ export function KpiCard({
   hint,
   tone = "neutral",
   info,
+  exactValue,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "neutral" | "positive" | "negative" | "today" | "change";
   info?: ReactNode;
+  exactValue?: string;
 }) {
   const toneClass = {
     neutral: "text-foreground",
@@ -69,8 +71,8 @@ export function KpiCard({
     change: "text-change",
   }[tone];
   return (
-    <div className="surface-card print-keep p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="surface-card print-keep min-w-0 p-4">
+      <p className="break-words text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
         {info && (
           <HoverCard openDelay={100} closeDelay={100}>
@@ -89,8 +91,9 @@ export function KpiCard({
           </HoverCard>
         )}
       </p>
-      <p className={cn("num mt-2 text-2xl font-semibold", toneClass)}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <p title={exactValue} className={cn("num mt-2 tabular-nums font-semibold", exactValue ? "whitespace-nowrap text-xl 2xl:text-2xl" : "break-words text-xl", toneClass)}>{value}</p>
+      {exactValue && <p className="num mt-1 whitespace-nowrap text-xs tabular-nums text-muted-foreground" title={exactValue}>{exactValue}</p>}
+      {hint && <p className="mt-1 break-words text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

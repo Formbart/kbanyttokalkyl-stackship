@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Förbättra resultatsidans belopp, jämförelsediagram, varningar och avrundning; verifiera Klara och mobilbredder utan ändrad beräkningslogik.
+
 - [x] Implementera uppladdad beräkningsspec v2 (basår, skillnadsfelmarginal, todayId-spegling, inkl.-omfördelning)
 - [x] Uppdatera årstabellen med arbetstidskostnad och separat budgetkostnad för båda nyttotyperna; verifiera ändrad tjänstegrad och lön.
 
