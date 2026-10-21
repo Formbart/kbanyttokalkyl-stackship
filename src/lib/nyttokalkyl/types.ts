@@ -79,6 +79,14 @@ export interface CostSheet<TStaff> {
   items: CostItem[];
   staff: TStaff[];
   growth: number;
+  /** Felmarginal i procent för personalkostnader (standard DEFAULT_STAFF_MARGIN). */
+  staffMargin?: number;
+}
+
+export const DEFAULT_STAFF_MARGIN = 5;
+export function staffMarginOf(sheet: { staffMargin?: number | undefined }): number {
+  const m = sheet.staffMargin;
+  return typeof m === "number" && Number.isFinite(m) && m >= 0 ? m : DEFAULT_STAFF_MARGIN;
 }
 
 export interface Revision {

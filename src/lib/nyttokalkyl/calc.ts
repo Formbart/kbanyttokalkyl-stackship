@@ -6,6 +6,7 @@ import {
   MIN_CALCULATION_YEARS,
   PO_FACTOR,
   QUALITATIVE_TYPES,
+  staffMarginOf,
   type AppState,
   type Benefit,
   type CostSheet,
@@ -117,6 +118,7 @@ export function computeCostSheet(
       const growth = retained ? baseline?.growth ?? 0 : sheet.growth;
       return sum + staffAnnualCost(person.salary, person.hours, person.count ?? 1) * Math.pow(1 + (growth || 0) / 100, i);
     }, 0);
+    annualMargin += Math.abs(staffCost) * staffMarginOf(sheet) / 100;
     const total = oneTime + recurring + staffCost;
     const discount = Math.pow(1 + rate, -i);
     marginSum += annualMargin * discount;

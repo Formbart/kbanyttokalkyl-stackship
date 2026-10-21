@@ -701,6 +701,19 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
             />
           </Field>
+          <Field label="Felmarginal personal (%)" hint="Osäkerhet i personalkostnaderna, används i bästa/sämsta scenario.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              className="num"
+              value={sheet.staffMargin ?? DEFAULT_STAFF_MARGIN}
+              onChange={(e) => {
+                const staffMargin = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                setState((s) => ({ ...s, [key]: { ...s[key], staffMargin } }) as typeof s);
+              }}
+            />
+          </Field>
           <Field label="Diskonteringsränta (%)" hint="Gemensamt antagande för hela kalkylen.">
             <Input type="number" min={0} step="0.1" className="num" value={state.project.discountRate ?? 3}
               onChange={(e) => setState((s) => ({ ...s, project: { ...s.project, discountRate: Math.max(0, Number(e.target.value) || 0) } }))} />
