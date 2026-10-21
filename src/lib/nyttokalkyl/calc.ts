@@ -216,11 +216,11 @@ export function computeReallocation(today: StaffToday[], change: StaffChange[]):
 
 export function computeReallocationOverPeriod(
   hoursFreed: number, valueFreed: number, growth: number, startYear: number,
-  calculationYears: number, rate: number = DISCOUNT_RATE,
+  calculationYears: number, rate: number = DISCOUNT_RATE, baseYear: number = startYear,
 ): { totalHoursFreed: number; totalValueFreedNPV: number } {
   const n = clampYears(calculationYears);
-  const totalValueFreedNPV = years(startYear, n).reduce((sum, _, i) =>
-    sum + valueFreed * Math.pow(1 + (growth || 0) / 100, i) / Math.pow(1 + rate, i), 0);
+  const totalValueFreedNPV = years(startYear, n).reduce((sum, year) =>
+    sum + valueFreed * Math.pow(1 + (growth || 0) / 100, year - baseYear) / Math.pow(1 + rate, year - baseYear), 0);
   return { totalHoursFreed: hoursFreed * n, totalValueFreedNPV };
 }
 
@@ -279,30 +279,89 @@ export interface NetRow {
   net: number;
   reallocation: number;
   cumulative: number;
+  cumulativeIncl: number;
 }
 
 export const NO_BREAK_EVEN = "Uppnås ej inom kalkylperioden";
 export interface NetBenefit {
   perYear: NetRow[];
   totalNet: number;
+  /** Finansiell nettonytta + omfördelningsnytta (nuvärde). Motsvarar mallens "Ja"-läge. */
+  totalNetIncl: number;
   low: number;
   high: number;
   breakEvenYear: number | typeof NO_BREAK_EVEN;
+  breakEvenYearIncl: number | typeof NO_BREAK_EVEN;
 }
 
 export function computeNetBenefit(state: AppState, todayCalc: SheetCalc, changeCalc: SheetCalc): NetBenefit {
   const { valueFreed } = computeReallocation(state.costToday.staff, state.costChange.staff);
+  const baseYear = baseYearOf(state);
+  const rate = discountRate(state);
   let cumulative = 0;
+  let cumulativeIncl = 0;
   let breakEvenYear: number | null = null;
+  let breakEvenYearIncl: number | null = null;
   const perYear = years(state.project.startYear, calcYears(state)).map((year, i) => {
-    const reallocation = valueFreed * Math.pow(1 + (state.costToday.growth || 0) / 100, i) / Math.pow(1 + discountRate(state), i);
+    const reallocation = valueFreed * Math.pow(1 + (state.costToday.growth || 0) / 100, year - baseYear) / Math.pow(1 + rate, year - baseYear);
     const net = (todayCalc.perYear[i]?.npv ?? 0) - (changeCalc.perYear[i]?.npv ?? 0);
     cumulative += net;
-    if (breakEvenYear === null && cumulative > 0) breakEvenYear = year;
-    return { year, net, reallocation, cumulative };
+    cumulativeIncl += net + reallocation;
+    if (breakEvenYear === null && cumulative >= 0) breakEvenYear = year;
+    if (breakEvenYearIncl === null && cumulativeIncl >= 0) breakEvenYearIncl = year;
+    return { year, net, reallocation, cumulative, cumulativeIncl };
   });
-  return { perYear, totalNet: cumulative, low: todayCalc.best - changeCalc.worst,
-    high: todayCalc.worst - changeCalc.best, breakEvenYear: breakEvenYear ?? NO_BREAK_EVEN };
+  return { perYear, totalNet: cumulative, totalNetIncl: cumulativeIncl,
+    low: todayCalc.best - changeCalc.worst,
+    high: todayCalc.worst - changeCalc.best,
+    breakEvenYear: breakEvenYear ?? NO_BREAK_EVEN,
+    breakEvenYearIncl: breakEvenYearIncl ?? NO_BREAK_EVEN };
+}
+
+/**
+ * Migrerar gamla sparade kalkyler: basår = startår, stabila id:n på nulägesrader,
+ * todayId-koppling via befattningsmatchning och speglade rader för nulägesrader
+ * som saknar motpart — så att det finansiella resultatet inte påverkas.
+ */
+export function migrateState(state: AppState): AppState {
+  const baseYear = state.project.baseYear ?? state.project.startYear;
+  const todayStaff = state.costToday.staff.map((t) => (t.id ? t : { ...t, id: newStaffId() }));
+  const matches = matchStaffRows(todayStaff, state.costChange.staff);
+  const usedToday = new Set<number>();
+  const changeStaff = state.costChange.staff.map((c, i) => {
+    if (c.todayId != null) {
+      const idx = todayStaff.findIndex((t) => t.id === c.todayId);
+      if (idx >= 0) { usedToday.add(idx); return c; }
+      return { ...c, todayId: null };
+    }
+    const match = matches[i];
+    if (match != null && !usedToday.has(match)) {
+      usedToday.add(match);
+      return { ...c, todayId: todayStaff[match]?.id ?? null };
+    }
+    return { ...c, todayId: null };
+  });
+  const mirrors: StaffChange[] = todayStaff.flatMap((t, j) =>
+    usedToday.has(j)
+      ? []
+      : [{
+          ...emptyStaffChange(t.id),
+          forvaltning: t.forvaltning,
+          positionIndex: t.positionIndex,
+          role: t.role,
+          salary: t.salary,
+          hours: t.hours,
+          count: t.count,
+          benefitType: "Omfördelningsnytta ↺" as const,
+          desc: t.desc,
+        }],
+  );
+  return {
+    ...state,
+    project: { ...state.project, baseYear },
+    costToday: { ...state.costToday, staff: todayStaff },
+    costChange: { ...state.costChange, staff: [...changeStaff, ...mirrors] },
+  };
 }
 
 export function formatKr(value: number): string {
