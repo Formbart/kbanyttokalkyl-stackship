@@ -16,3 +16,4 @@
 - Run unit tests with the isolated Vitest configuration so server handlers can be tested without the framework RPC transform.
 - Keep result-only cost filtering and warning/move helpers in a browser-safe presentation module; derive amounts with existing calculation functions without modifying scenario math.
 - Use computeFreedTime for the informational staff-time breakdown across results, Excel and AI; keep signed computeReallocation as the sole added benefit in net totals to avoid counting financial removals twice.
+- Keep result definitions in the browser-safe GLOSSARY shared by help, print and Excel comments; use GlossaryInfo for consistent keyboard, hover and touch access.
