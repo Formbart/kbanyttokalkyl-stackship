@@ -493,26 +493,67 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             const forvaltning = row.forvaltning ?? FORVALTNING_OVRIGT;
             const isOvrigt = forvaltning === FORVALTNING_OVRIGT;
             const positionList = personalData[forvaltning] ?? [];
+            const mirrored =
+              scenario === "change" && (row as StaffChange).todayId != null;
+            const isNewResource = scenario === "change" && !mirrored;
+            const retired =
+              mirrored &&
+              row.hours === 0 &&
+              (row as StaffChange).benefitType === "Finansiell nytta 💰";
             const salaryLocked =
-              !isOvrigt &&
+              mirrored ||
+              (!isOvrigt &&
               row.positionIndex !== null &&
               row.positionIndex !== undefined &&
-              positionList.length > 0;
+              positionList.length > 0);
+            const increasedTime =
+              mirrored &&
+              baseline &&
+              row.hours * count > baseline.hours * (baseline.count ?? 1);
             return (
-              <div key={i} className="rounded-xl border border-border p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-brand-dark">
+              <div key={scenario === "today" ? (row as StaffToday).id : ((row as StaffChange).todayId ?? `ny-${i}`)} className="rounded-xl border border-border p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-brand-dark">
                     Rad {i + 1}
+                    {mirrored && (
+                      <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-dark">
+                        Speglad från nuläget
+                      </span>
+                    )}
+                    {isNewResource && (
+                      <span className="rounded-full bg-change/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-change">
+                        Ny resurs
+                      </span>
+                    )}
+                    {retired && (
+                      <span className="rounded-full bg-negative/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-negative">
+                        Avvecklas
+                      </span>
+                    )}
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Ta bort personalrad"
-                    className="no-print text-negative"
-                    onClick={() => removeStaff(i)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    {mirrored && !retired && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="no-print text-xs text-muted-foreground"
+                        onClick={() => retireStaff(i)}
+                      >
+                        Avvecklas
+                      </Button>
+                    )}
+                    {(scenario === "today" || isNewResource) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Ta bort personalrad"
+                        className="no-print text-negative"
+                        onClick={() => removeStaff(i)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <Field label="Förvaltning">
