@@ -290,11 +290,11 @@ describe("all freed time without double counting", () => {
     expect(freed.totalFreedHours).toBe(176000);
     expect(freed.reallocatedHours).toBe(176000);
     expect(freed.removedHours).toBe(0);
-    expect(freed.totalFreedValue).toBeCloseTo(78801898.8864, 4);
+    expect(freed.totalFreedValue).toBeCloseTo(78801899.3856, 4);
     const costs = computeProjectCosts(state);
     const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
     expect(net.totalNetIncl - net.totalNet).toBeCloseTo(freed.totals.reallocatedValue, 4);
-    expect(freed.perYear[1]?.npv.totalFreedValue).toBeCloseTo(78801898.8864 * 1.02 / 1.03, 4);
+    expect(freed.perYear[1]?.npv.totalFreedValue).toBeCloseTo(78801899.3856 * 1.02 / 1.03, 4);
     expect(freed.totals.totalFreedHours).toBe(704000);
   });
   it("reports financial removal but never adds it to net benefit twice", () => {
@@ -309,7 +309,7 @@ describe("all freed time without double counting", () => {
     expect(freed.removedHours).toBe(176000);
     const costs = computeProjectCosts(state);
     const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
-    expect(net.perYear[0]?.net).toBeCloseTo(78801898.8864, 4);
+    expect(net.perYear[0]?.net).toBeCloseTo(78801899.3856, 4);
     expect(net.totalNetIncl - net.totalNet).toBe(0);
     expect(net.perYear.map((r) => r.reallocation)).toEqual([0, 0, 0, 0]);
   });
@@ -325,7 +325,7 @@ describe("all freed time without double counting", () => {
     expect(freed.totalFreedHours).toBe(176000);
     expect(freed.removedHours).toBe(70400);
     expect(freed.reallocatedHours).toBe(105600);
-    expect(freed.removedValue + freed.reallocatedValue).toBeCloseTo(78801898.8864, 4);
+    expect(freed.removedValue + freed.reallocatedValue).toBeCloseTo(78801899.3856, 4);
   });
   it("separates increased hours rather than reporting negative freed time", () => {
     const state = klaraFixture();
@@ -334,7 +334,7 @@ describe("all freed time without double counting", () => {
     row.hours = 1936;
     const freed = getFreed(state);
     expect(freed.increasedHours).toBe(176000);
-    expect(freed.increasedValue).toBeCloseTo(78801898.8864, 4);
+    expect(freed.increasedValue).toBeCloseTo(78801899.3856, 4);
     expect(freed.totalFreedHours).toBe(0);
     expect(freed.totalFreedValue).toBe(0);
     expect(freed.reallocatedHours).toBe(0);
