@@ -27,6 +27,8 @@ import {
   KpiCard,
   SectionCard,
 } from "../shared";
+import { GlossaryInfo, GlossaryLabel } from "../GlossaryInfo";
+import { GLOSSARY } from "@/lib/nyttokalkyl/glossary";
 import { FreedTimeSection } from "../FreedTimeSection";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
@@ -189,6 +191,7 @@ export function Step5() {
       <div data-testid="result-kpis" className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Kostnad idag (nuvärde)"
+          glossaryTerm="Nuvärde"
           value={formatKrCompact(todayCalc.npvSum)}
           exactValue={formatKr(todayCalc.npvSum)}
           tone="today"
@@ -196,6 +199,7 @@ export function Step5() {
         />
         <KpiCard
           label="Kostnad vid förändring"
+          glossaryTerm="Nuvärde"
           value={formatKrCompact(changeCalc.npvSum)}
           exactValue={formatKr(changeCalc.npvSum)}
           tone="change"
@@ -203,13 +207,15 @@ export function Step5() {
         />
         <KpiCard
           label="Finansiell nettonytta"
+          glossaryTerm="Finansiell nettonytta"
           value={formatKrCompact(net.totalNet)}
           exactValue={formatKr(net.totalNet)}
           tone={net.totalNet >= 0 ? "positive" : "negative"}
-          hint={`Intervall: ${formatKrCompact(net.low)} – ${formatKrCompact(net.high)}`}
+          hint={<><GlossaryLabel term="Intervall (Sämsta/Bästa)">Intervall</GlossaryLabel>: {formatKrCompact(net.low)} – {formatKrCompact(net.high)}</>}
         />
         <KpiCard
           label="Nettonytta inkl. omfördelning"
+          glossaryTerm="Nettonytta inkl. omfördelning"
           value={formatKrCompact(net.totalNetIncl)}
           exactValue={formatKr(net.totalNetIncl)}
           tone={net.totalNetIncl >= 0 ? "positive" : "negative"}
@@ -217,6 +223,7 @@ export function Step5() {
         />
         <KpiCard
           label="Break-even år"
+          glossaryTerm="Break-even år"
           value={String(net.breakEvenYear)}
           tone={net.breakEvenYear === NO_BREAK_EVEN ? "negative" : "positive"}
           {...(net.breakEvenYearIncl !== net.breakEvenYear
@@ -276,7 +283,7 @@ export function Step5() {
           <table className="w-full min-w-[480px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="pb-2 pr-3">Scenario</th>
+                <th className="pb-2 pr-3"><GlossaryLabel term="Intervall (Sämsta/Bästa)">Scenario</GlossaryLabel></th>
                 <th className="pb-2 pr-3">Kostnad idag</th>
                 <th className="pb-2 pr-3">Vid förändring</th>
                 <th className="pb-2">Skillnad</th>
@@ -342,7 +349,10 @@ export function Step5() {
                   );
                 }}
               />
-              <Legend />
+              <Legend content={() => <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
+                <li><span className="mr-1 inline-block h-2 w-3 bg-negative" aria-hidden="true" /><GlossaryLabel term="Finansiell nettonytta" /></li>
+                <li><span className="mr-1 inline-block h-0.5 w-3 bg-brand align-middle" aria-hidden="true" /><GlossaryLabel term="Ackumulerad finansiell nettonytta" /></li>
+              </ul>} />
               <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
               {net.breakEvenYear !== NO_BREAK_EVEN && (
                 <ReferenceLine
@@ -390,7 +400,7 @@ export function Step5() {
         </div>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th>År</th><th>Finansiell nettonytta</th><th>Omfördelningsnytta</th><th>Ackumulerad finansiell nettonytta</th><th>Ackumulerad inkl. omfördelning</th></tr></thead>
+            <thead><tr className="text-left text-muted-foreground"><th>År</th><th><GlossaryLabel term="Finansiell nettonytta" /></th><th><GlossaryLabel term="Omfördelningsnytta" /></th><th><GlossaryLabel term="Ackumulerad finansiell nettonytta" /></th><th><GlossaryLabel term="Ackumulerad inkl. omfördelning" /></th></tr></thead>
             <tbody className="num">{net.perYear.map((r) => <tr key={r.year} className="border-t border-border"><td className="py-2">{r.year}</td><td>{formatKr(r.net)}</td><td>{formatKr(r.reallocation)}</td><td>{formatKr(r.cumulative)}</td><td>{formatKr(r.cumulativeIncl)}</td></tr>)}</tbody>
           </table>
         </div>
@@ -400,7 +410,7 @@ export function Step5() {
           </p>
         )}
         <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-          <li>Belopp anges i basårets ({baseYearOf(state)}) priser. Löpande kostnader, personal och omfördelningsnytta räknas upp med årlig kostnadsökning. Engångskostnader räknas inte upp. Nuvärdet avser basåret.</li>
+          <li>Belopp anges i basårets ({baseYearOf(state)}) priser. Löpande kostnader, personal och omfördelningsnytta räknas upp med årlig kostnadsökning. Engångskostnader räknas inte upp. Nuvärdet avser basåret.<GlossaryInfo term="Nuvärde" /></li>
           <li>Felmarginalen avser bara det som skiljer alternativen åt.</li>
           <li>Omfördelningsnyttan räknas upp med löneökningen (skiljer sig från mallen, som håller den konstant).</li>
         </ul>
@@ -458,6 +468,11 @@ export function Step5() {
           )}
         </SectionCard>
       </div>
+
+      <section className="hidden print:block" aria-label="Begreppsförklaringar">
+        <h3 className="mb-3 text-base font-semibold">Begreppsförklaringar</h3>
+        <dl className="space-y-3 text-sm">{Object.entries(GLOSSARY).map(([term, entry]) => <div key={term} className="print-keep"><dt className="font-semibold">{term}</dt><dd>{entry.description}{"example" in entry && <p className="mt-1 italic">{entry.example}</p>}</dd></div>)}</dl>
+      </section>
 
       {review && (
         <SectionCard title="AI-granskning av kalkylen">

@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Check, Info, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GlossaryInfo } from "./GlossaryInfo";
+import type { GlossaryTerm } from "@/lib/nyttokalkyl/glossary";
 import {
   Popover,
   PopoverContent,
@@ -20,7 +22,7 @@ export function SectionCard({
   children,
   className,
 }: {
-  title?: string;
+  title?: ReactNode;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
@@ -55,13 +57,15 @@ export function KpiCard({
   tone = "neutral",
   info,
   exactValue,
+  glossaryTerm,
 }: {
   label: string;
   value: string;
-  hint?: string;
+  hint?: ReactNode;
   tone?: "neutral" | "positive" | "negative" | "today" | "change";
   info?: ReactNode;
   exactValue?: string;
+  glossaryTerm?: GlossaryTerm;
 }) {
   const toneClass = {
     neutral: "text-foreground",
@@ -74,6 +78,7 @@ export function KpiCard({
     <div className="surface-card print-keep min-w-0 p-4">
       <p className="break-words text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
+        {glossaryTerm && <GlossaryInfo term={glossaryTerm} />}
         {info && (
           <HoverCard openDelay={100} closeDelay={100}>
             <HoverCardTrigger asChild>
