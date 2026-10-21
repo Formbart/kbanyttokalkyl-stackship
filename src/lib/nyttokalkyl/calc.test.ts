@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { HyperFormula } from "hyperformula";
 import { buildNyttokalkylWorkbook } from "./exportExcel";
-import { computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, staffAnnualCost, NO_BREAK_EVEN } from "./calc";
-import { emptyCostItem, emptyStaffChange, emptyStaffToday, initialState } from "./types";
+import { baseYearOf, computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, migrateState, staffAnnualCost, NO_BREAK_EVEN } from "./calc";
+import { emptyCostItem, emptyStaffChange, emptyStaffToday, initialState, type AppState } from "./types";
 
 export function klaraFixture() {
   const state = initialState();
-  state.project = { ...state.project, name: "Klara", startYear: 2026, calculationYears: 4, discountRate: 3 };
+  state.project = { ...state.project, name: "Klara", startYear: 2026, baseYear: 2026, calculationYears: 4, discountRate: 3 };
   const teacher = { ...emptyStaffToday(), role: "Lärare senare år", count: 1000, salary: 46825.62 };
   state.costToday.staff = [teacher];
-  state.costChange.staff = [{ ...emptyStaffChange(), ...teacher, hours: 1584 }];
+  state.costChange.staff = [{
+    ...emptyStaffChange(teacher.id),
+    forvaltning: teacher.forvaltning,
+    positionIndex: teacher.positionIndex,
+    role: teacher.role,
+    salary: teacher.salary,
+    count: teacher.count,
+    hours: 1584,
+  }];
   state.costChange.items = [
-    { ...emptyCostItem(2026), name: "Programutveckling", type: "Engångskostnad", costPerYear: 1000000 },
-    { ...emptyCostItem(2027), name: "Programutveckling", type: "Engångskostnad", costPerYear: 1000000 },
-    { ...emptyCostItem(2027), name: "AI-modeller", costPerYear: 200000 },
-    { ...emptyCostItem(2027), name: "DC", costPerYear: 20000 },
+    { ...emptyCostItem(2026), name: "Programutveckling", type: "Engångskostnad", costPerYear: 1000000, margin: 10 },
+    { ...emptyCostItem(2027), name: "Programutveckling", type: "Engångskostnad", costPerYear: 1000000, margin: 10 },
+    { ...emptyCostItem(2027), name: "AI-drift", costPerYear: 220000, margin: 10 },
   ];
   return state;
 }
@@ -32,27 +39,42 @@ describe("Klara and financial separation", () => {
     expect(staffAnnualCost(40000, 880, 1)).toBeCloseTo(336576, 2);
     expect(staffAnnualCost(32000, 880, 1)).toBeCloseTo(269260.8, 2);
   });
-  it("retains teacher salary and yields approximately -2.6 Mkr financial NPV", () => {
+  it("retains teacher salary and yields approximately -2.62 Mkr financial NPV", () => {
     const state = klaraFixture();
     const { todayCalc, changeCalc } = computeProjectCosts(state);
     expect(changeCalc.perYear.map((r) => r.staffCost)).toEqual(todayCalc.perYear.map((r) => r.staffCost));
     const net = computeNetBenefit(state, todayCalc, changeCalc);
     const investmentNPV = 1000000 + 1000000 / 1.03;
-    const operatingNPV = 220000 / 1.03 + 224400 / 1.03 ** 2 + 228888 / 1.03 ** 3;
+    const operatingNPV = 224400 / 1.03 + 228888 / 1.03 ** 2 + 233465.76 / 1.03 ** 3;
     expect(net.totalNet).toBeCloseTo(-investmentNPV - operatingNPV, 2);
-    expect(net.totalNet / 1e6).toBeCloseTo(-2.6, 1);
+    expect(Math.abs(net.totalNet - -2618141)).toBeLessThanOrEqual(1);
   });
-  it("reports 176000 freed hours and approximately 310.6 Mkr separately", () => {
+  it("indexes AI-driften 220000 from the 2026 base year to 224400 in 2027", () => {
+    const state = klaraFixture();
+    const { changeCalc } = computeProjectCosts(state);
+    expect(changeCalc.perYear.map((r) => r.recurring)).toEqual([0, 224400, 228888, 233465.76]);
+  });
+  it("reports 176000 freed hours, 78801899 kr the first year and approximately 310.6 Mkr over the period", () => {
     const state = klaraFixture();
     expect(computeReallocation(state.costToday.staff, state.costChange.staff).hoursFreed).toBe(176000);
     const costs = computeProjectCosts(state);
     const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
+    expect(Math.abs(net.perYear[0]!.reallocation - 78801899)).toBeLessThanOrEqual(1);
     expect(net.perYear.reduce((sum, r) => sum + r.reallocation, 0) / 1e6).toBeCloseTo(310.6, 1);
+  });
+  it("keeps the uncertainty interval narrow: margins only hit what differs", () => {
+    const state = klaraFixture();
+    const costs = computeProjectCosts(state);
+    const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
+    expect(Math.abs(net.low - -2879955)).toBeLessThanOrEqual(1);
+    expect(Math.abs(net.high - -2356327)).toBeLessThanOrEqual(1);
   });
   it("does not achieve financial break-even within the four-year period", () => {
     const state = klaraFixture();
     const costs = computeProjectCosts(state);
-    expect(computeNetBenefit(state, costs.todayCalc, costs.changeCalc).breakEvenYear).toBe(NO_BREAK_EVEN);
+    const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
+    expect(net.breakEvenYear).toBe(NO_BREAK_EVEN);
+    expect(net.breakEvenYearIncl).toBe(2026); // omfördelningsnyttan ger break-even direkt
     state.reallocationInGraph = true; // legacy saved switch must no longer affect money
     expect(computeNetBenefit(state, costs.todayCalc, costs.changeCalc).totalNet).toBeLessThan(0);
   });
@@ -77,10 +99,11 @@ describe("assumptions and uncertainty", () => {
   it("updates work costs for all four years while preserving reallocation budget costs", () => {
     const state = initialState();
     state.project.startYear = 2026;
+    state.project.baseYear = 2026;
     state.project.calculationYears = 4;
     state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
     state.costChange.staff = [{ ...emptyStaffChange(), salary: 40000, hours: 880 }];
-    const work = computeCostSheet(state.costChange, 2026, 4);
+    const work = computeCostSheet(state.costChange, 2026, 4, 0.03, undefined, 2026);
     expect(work.perYear.map((r) => r.year)).toEqual([2026, 2027, 2028, 2029]);
     work.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(336576 * 1.02 ** i, 5));
     computeProjectCosts(state).changeCalc.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(538521.6 * 1.02 ** i, 5));
@@ -92,9 +115,9 @@ describe("assumptions and uncertainty", () => {
     state.costChange.staff = [{ ...emptyStaffChange(), salary: 40000, hours: 880, benefitType: "Finansiell nytta 💰" }];
     computeProjectCosts(state).changeCalc.perYear.forEach((r, i) => expect(r.staffCost).toBeCloseTo(336576 * 1.02 ** i, 5));
   });
-  it("indexes 220000 from its own 2027 start to 224400 in 2028", () => {
+  it("indexes 220000 from the 2026 base year, not from the item's own start year", () => {
     const sheet = { growth: 2, staff: [], items: [{ ...emptyCostItem(2027), costPerYear: 220000 }] };
-    expect(computeCostSheet(sheet, 2026, 4).perYear.map((r) => r.recurring)).toEqual([0, 220000, 224400, 228888]);
+    expect(computeCostSheet(sheet, 2026, 4, 0.03, undefined, 2026).perYear.map((r) => r.recurring)).toEqual([0, 224400, 228888, 233465.76]);
   });
   it("applies editable 5 percent discounting", () => {
     const state = initialState();
@@ -112,6 +135,93 @@ describe("assumptions and uncertainty", () => {
     const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
     expect(net.low).toBe(420);
     expect(net.high).toBe(780);
+  });
+});
+
+describe("basår (prisnivå)", () => {
+  it("counts up and discounts from the base year when the start year is later", () => {
+    const state = initialState();
+    state.project.startYear = 2028;
+    state.project.baseYear = 2026;
+    state.project.calculationYears = 1;
+    state.costChange.items = [{ ...emptyCostItem(2028), costPerYear: 100000, margin: 0 }];
+    const { changeCalc } = computeProjectCosts(state);
+    expect(changeCalc.perYear[0]?.recurring).toBeCloseTo(100000 * 1.02 ** 2, 5);
+    expect(changeCalc.perYear[0]?.npv).toBeCloseTo((100000 * 1.02 ** 2) / 1.03 ** 2, 5);
+  });
+  it("falls back to the start year for old calculations without a base year", () => {
+    const state = initialState();
+    delete state.project.baseYear;
+    expect(baseYearOf(state)).toBe(state.project.startYear);
+  });
+});
+
+describe("migration of old saved calculations", () => {
+  it("keeps the financial net benefit unchanged when baseYear and todayId are missing", () => {
+    const state = initialState();
+    state.project.startYear = 2026;
+    state.project.calculationYears = 2;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    state.costChange.staff = [{ ...emptyStaffChange(), salary: 40000, hours: 880, benefitType: "Finansiell nytta 💰" }];
+    state.costChange.items = [{ ...emptyCostItem(2026), costPerYear: 100000, margin: 0 }];
+    const legacy = JSON.parse(JSON.stringify(state)) as AppState;
+    delete legacy.project.baseYear;
+    legacy.costToday.staff.forEach((r) => delete (r as Partial<typeof r>).id);
+    legacy.costChange.staff.forEach((r) => delete (r as Partial<typeof r>).todayId);
+    const before = computeNetBenefit(legacy, ...Object.values(computeProjectCosts(legacy)) as never);
+    const migrated = migrateState(legacy);
+    const costs = computeProjectCosts(migrated);
+    const after = computeNetBenefit(migrated, costs.todayCalc, costs.changeCalc);
+    expect(after.totalNet).toBeCloseTo(before.totalNet, 8);
+    expect(migrated.project.baseYear).toBe(2026);
+    expect(migrated.costChange.staff[0]?.todayId).toBe(migrated.costToday.staff[0]?.id);
+  });
+  it("mirrors an unmatched today row so it does not look like a saving", () => {
+    const state = initialState();
+    state.project.calculationYears = 2;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    state.costChange.staff = [];
+    const legacy = JSON.parse(JSON.stringify(state)) as AppState;
+    legacy.costToday.staff.forEach((r) => delete (r as Partial<typeof r>).id);
+    const migrated = migrateState(legacy);
+    expect(migrated.costChange.staff).toHaveLength(1);
+    expect(migrated.costChange.staff[0]?.todayId).toBe(migrated.costToday.staff[0]?.id);
+    const costs = computeProjectCosts(migrated);
+    const net = computeNetBenefit(migrated, costs.todayCalc, costs.changeCalc);
+    expect(net.totalNet).toBe(0);
+  });
+});
+
+describe("staff margin", () => {
+  it("defaults to 0 percent so identical alternatives get no spread", () => {
+    const state = initialState();
+    state.project.calculationYears = 1;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    const { todayCalc, changeCalc } = computeProjectCosts(state);
+    expect(todayCalc.marginSum).toBe(0);
+    expect(changeCalc.marginSum).toBe(0);
+  });
+  it("applies the margin only to the difference between the alternatives", () => {
+    const state = initialState();
+    state.project.startYear = 2026;
+    state.project.baseYear = 2026;
+    state.project.calculationYears = 1;
+    const teacher = { ...emptyStaffToday(), salary: 32000 };
+    state.costToday.staff = [teacher];
+    state.costChange.staffMargin = 10;
+    // Oförändrad speglad rad: ingen skillnad, ingen marginal.
+    state.costChange.staff = [{ ...emptyStaffChange(teacher.id), role: teacher.role, salary: 32000, benefitType: "Finansiell nytta 💰" }];
+    let costs = computeProjectCosts(state);
+    expect(costs.changeCalc.marginSum).toBe(0);
+    // Halverad arbetstid: marginal på halva kostnaden.
+    state.costChange.staff = [{ ...emptyStaffChange(teacher.id), role: teacher.role, salary: 32000, hours: 880, benefitType: "Finansiell nytta 💰" }];
+    costs = computeProjectCosts(state);
+    expect(costs.changeCalc.marginSum).toBeCloseTo(538521.6 * 0.5 * 0.1, 2);
+    // Ny resurs utan motpart: marginal på hela kostnaden.
+    state.costChange.staff = [{ ...emptyStaffChange(null), salary: 32000, benefitType: "Finansiell nytta 💰" }];
+    state.costToday.staff = [];
+    costs = computeProjectCosts(state);
+    expect(costs.changeCalc.marginSum).toBeCloseTo(538521.6 * 0.1, 2);
   });
 });
 
@@ -142,8 +252,10 @@ describe("Excel formula recalculation", () => {
     const expected: Record<string, number | string> = {
       "Finansiell nettonytta (nuvärde)": net.totalNet,
       "Omfördelningsnytta (nuvärde)": net.perYear.reduce((sum, r) => sum + r.reallocation, 0),
+      "Nettonytta inklusive omfördelning": net.totalNetIncl,
       "Frigjorda timmar/år": 176000,
       "Break-even år": net.breakEvenYear,
+      "Break-even inkl. omfördelning": net.breakEvenYearIncl,
       "Finansiell nettonytta – lågt": net.low,
       "Finansiell nettonytta – högt": net.high,
     };
@@ -164,16 +276,5 @@ describe("Excel formula recalculation", () => {
     const buffer = await workbook.xlsx.writeBuffer();
     expect(buffer.byteLength).toBeGreaterThan(1000);
     engine.destroy();
-  });
-});
-describe("staff margin", () => {
-  it("adds 5 percent staff margin by default to the scenario spread", () => {
-    const state = initialState();
-    state.project.calculationYears = 1;
-    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
-    const { todayCalc } = computeProjectCosts(state);
-    expect(todayCalc.marginSum).toBeCloseTo(538521.6 * 0.05, 2);
-    state.costToday.staffMargin = 0;
-    expect(computeProjectCosts(state).todayCalc.marginSum).toBe(0);
   });
 });
