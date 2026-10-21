@@ -185,11 +185,9 @@ export function Step5() {
           label="Break-even år"
           value={String(net.breakEvenYear)}
           tone={net.breakEvenYear === NO_BREAK_EVEN ? "negative" : "positive"}
-          hint={
-            net.breakEvenYearIncl !== net.breakEvenYear
-              ? `Inkl. omfördelning: ${net.breakEvenYearIncl}`
-              : undefined
-          }
+          {...(net.breakEvenYearIncl !== net.breakEvenYear
+            ? { hint: `Inkl. omfördelning: ${net.breakEvenYearIncl}` }
+            : {})}
         />
       </div>
 
