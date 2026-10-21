@@ -789,18 +789,70 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             label={hasReallocation ? "Summa nuvärde – budget (sannolikt)" : "Summa nuvärde (sannolikt)"}
             value={formatKr(calc.npvSum)}
             tone={scenario === "today" ? "today" : "change"}
+            info={
+              <>
+                <p className="font-semibold">Så beräknas summan</p>
+                <p className="mt-1.5">
+                  Varje års kostnad (engångs- och löpande kostnader plus
+                  personalkostnad) räknas om till nuvärde med kalkylräntan{" "}
+                  {Math.round(discountRate(state) * 100)} % per år och summeras
+                  över kalkylperioden {startYear}–{startYear + nYears - 1}.
+                </p>
+                <p className="mt-1.5">
+                  Personalkostnad = månadslön × 12 × 1,4024 (PO-pålägg) ×
+                  tjänstgöringsgrad × antal personer. Kostnadsposter uppräknas
+                  med den årliga kostnadsökningen från sitt startår; poster som
+                  startar efter perioden räknas inte med.
+                </p>
+                {hasReallocation && (
+                  <p className="mt-1.5">
+                    Vid omfördelningsnytta behålls den ursprungliga lönen i
+                    summan – den frigjorda tiden redovisas separat som
+                    omfördelningsnytta.
+                  </p>
+                )}
+              </>
+            }
           />
           <KpiCard
             label="Bästa scenario"
             value={formatKr(calc.best)}
             hint={`Felmarginal ${formatKr(calc.marginSum)}`}
             tone="positive"
+            info={
+              <>
+                <p className="font-semibold">Så beräknas bästa scenario</p>
+                <p className="mt-1.5">
+                  Samma nuvärde som i summan till vänster, men med alla
+                  felmarginaler dragna. Felmarginalen (% som anges per
+                  kostnadspost och för personal) tas på varje års kostnad,
+                  summeras och diskonteras.
+                </p>
+                <p className="mt-1.5">
+                  Bästa scenario = Summa nuvärde − felmarginal.
+                </p>
+              </>
+            }
           />
           <KpiCard
             label="Sämsta scenario"
             value={formatKr(calc.worst)}
             hint={`Felmarginal ${formatKr(calc.marginSum)}`}
             tone="negative"
+            info={
+              <>
+                <p className="font-semibold">Så beräknas sämsta scenario</p>
+                <p className="mt-1.5">
+                  Samma nuvärde som i summan till vänster, men med alla
+                  felmarginaler pålagda. Felmarginalen (% som anges per
+                  kostnadspost och för personal) tas på varje års kostnad,
+                  summeras och diskonteras.
+                </p>
+                <p className="mt-1.5">
+                  Sämsta scenario = Summa nuvärde + felmarginal.
+                </p>
+              </>
+            }
           />
         </div>
       </SectionCard>
