@@ -333,7 +333,6 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   const result = workbook.addWorksheet("5 Resultat");
   title(result, "5 Resultat", "Finansiell nettonytta och omfördelningsnytta – separat redovisning", 8);
   section(result, 4, "Nyckeltal", 8);
-  const { todayCalc, changeCalc } = computeProjectCosts(state);
   const net = computeNetBenefit(state, todayCalc, changeCalc);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
   const addMetric = (label: string, value: ExcelJS.CellValue, format = currencyFormat) => {
@@ -359,28 +358,33 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   const valueCell = addMetric("Värde av frigjord tid/år (kr)", { formula: valueTerms.join("+") || "0", result: realloc.valueFreed });
   const netCell = addMetric("Finansiell nettonytta (nuvärde)", 0);
   const reallocCell = addMetric("Omfördelningsnytta (nuvärde)", 0);
+  const inclCell = addMetric("Nettonytta inklusive omfördelning", 0);
   const breakCell = addMetric("Break-even år", 0, "General");
+  const breakInclCell = addMetric("Break-even inkl. omfördelning", 0, "General");
   addMetric("Finansiell nettonytta – lågt", { formula: `'${today.worksheet.name}'!${today.totalCell}-'${change.worksheet.name}'!${change.totalCell}-'${today.worksheet.name}'!${today.marginCell}-'${change.worksheet.name}'!${change.marginCell}`, result: net.low });
   addMetric("Finansiell nettonytta – högt", { formula: `'${today.worksheet.name}'!${today.totalCell}-'${change.worksheet.name}'!${change.totalCell}+'${today.worksheet.name}'!${today.marginCell}+'${change.worksheet.name}'!${change.marginCell}`, result: net.high });
-  result.addRow(["Frigjord tid som används till annat – inte en besparing i budget"]);
+  result.addRow(["Frigjord tid som används till annat – inte en besparing i budget. 'Nettonytta inklusive omfördelning' motsvarar mallens 'Ja'-läge och är inte budgetpåverkande."]);
   const sectionRow = result.rowCount + 2;
   section(result, sectionRow, "Nettonytta per år", 8);
-  header(result.addRow(["År", "Finansiell nettonytta (kr)", "Omfördelningsnytta (kr)", "Ackumulerad finansiell nettonytta (kr)"]));
+  header(result.addRow(["År", "Finansiell nettonytta (kr)", "Omfördelningsnytta (kr)", "Ackumulerad finansiell nettonytta (kr)", "Ackumulerad inkl. omfördelning (kr)"]));
   const resultRows: number[] = [];
   net.perYear.forEach((item, index) => {
     const r = result.rowCount + 1;
     resultRows.push(r);
     result.addRow([item.year,
       { formula: `'${today.worksheet.name}'!F${today.yearRows[index]}-'${change.worksheet.name}'!F${change.yearRows[index]}`, result: item.net },
-      { formula: `$${valueCell[0]}$${valueCell.slice(1)}*(1+'${today.worksheet.name}'!$B$5)^(A${r}-$A$${resultRows[0]})/(1+'${today.worksheet.name}'!$H$5)^(A${r}-$A$${resultRows[0]})`, result: item.reallocation },
-      { formula: index === 0 ? `B${r}` : `D${r - 1}+B${r}`, result: item.cumulative }]);
-    for (let c = 2; c <= 4; c++) formula(result.getCell(r, c), currencyFormat, c < 4);
+      { formula: `$${valueCell[0]}$${valueCell.slice(1)}*(1+'${today.worksheet.name}'!$B$5)^(A${r}-${BASE_YEAR_REF})/(1+'${today.worksheet.name}'!$H$5)^(A${r}-${BASE_YEAR_REF})`, result: item.reallocation },
+      { formula: index === 0 ? `B${r}` : `D${r - 1}+B${r}`, result: item.cumulative },
+      { formula: index === 0 ? `B${r}+C${r}` : `E${r - 1}+B${r}+C${r}`, result: item.cumulativeIncl }]);
+    for (let c = 2; c <= 5; c++) formula(result.getCell(r, c), currencyFormat, c < 4);
   });
   const first = resultRows[0];
   const last = resultRows[resultRows.length - 1];
   result.getCell(netCell).value = { formula: `SUM(B${first}:B${last})`, result: net.totalNet };
   result.getCell(reallocCell).value = { formula: `SUM(C${first}:C${last})`, result: net.perYear.reduce((sum, r) => sum + r.reallocation, 0) };
-  result.getCell(breakCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(D${r}>0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYear };
+  result.getCell(inclCell).value = { formula: `${netCell}+${reallocCell}`, result: net.totalNetIncl };
+  result.getCell(breakCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(D${r}>=0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYear };
+  result.getCell(breakInclCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(E${r}>=0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYearIncl };
   section(result, result.rowCount + 2, "Kvalitativa nyttor", 8);
   header(result.addRow(["Nytta", "Typ", "Gynnas", "Förflyttning", "Bedömning"]));
   qualRows.forEach((item) => result.addRow([benefitSentence(item.benefit), item.benefit.type, item.benefit.gynnas, item.movement, item.label]));
