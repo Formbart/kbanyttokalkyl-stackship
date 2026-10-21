@@ -665,9 +665,11 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                   <Field
                     label="Månadslön exkl. PO"
                     hint={
-                      salaryLocked
-                        ? `Hämtad från befattningslistan: ${formatKr(row.salary || 0)}/mån per person`
-                        : `Heltidslön: ${formatKr(row.salary || 0)}/mån per person`
+                      mirrored
+                        ? `Lönen ändras i nuläget (steg 2). Ange belopp i ${baseYear}-års priser.`
+                        : salaryLocked
+                          ? `Hämtad från befattningslistan: ${formatKr(row.salary || 0)}/mån per person i ${baseYear}-års priser`
+                          : `Heltidslön: ${formatKr(row.salary || 0)}/mån per person i ${baseYear}-års priser`
                     }
                   >
                     <Input
@@ -767,12 +769,24 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     </Field>
                   )}
                 </div>
+                {increasedTime && baseline && (
+                  <p className="mt-3 rounded-lg bg-change/10 px-3 py-2 text-xs text-change">
+                    Ökad tidsåtgång: {formatNumber(row.hours * count - baseline.hours * (baseline.count ?? 1))} h fler än i nuläget.
+                  </p>
+                )}
+                {retired && !row.desc.trim() && (
+                  <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-negative">
+                    Motivering krävs — beskriv varför resursen avvecklas.
+                  </p>
+                )}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <Field
                     label={
                       scenario === "today"
                         ? "Arbetsbeskrivning"
-                        : "Vad görs med frigjord tid?"
+                        : retired
+                          ? "Motivering till avveckling"
+                          : "Vad görs med frigjord tid?"
                     }
                   >
                     <Textarea
