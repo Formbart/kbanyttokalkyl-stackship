@@ -177,6 +177,8 @@ export interface AppState {
     startYear: number;
     /** Kalkylperiodens längd i år. */
     calculationYears?: number;
+    /** Diskonteringsränta i procent, gemensam för båda scenarierna. */
+    discountRate?: number;
     benefits: Benefit[];
     stakeholders: string;
     revisions: Revision[];
@@ -313,6 +315,7 @@ export function initialState(): AppState {
       alt2: "",
       startYear: year,
       calculationYears: 6,
+      discountRate: 3,
       benefits: [],
       stakeholders: "",
       revisions: [],
