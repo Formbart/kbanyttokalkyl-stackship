@@ -211,7 +211,7 @@ export interface FreedTimeAmounts {
 
 /** Positive freed time is informational; removed time is already in financial net benefit. */
 export function computeFreedTime(
-  today: StaffToday[], change: StaffChange[], growth = 0, startYear = 2026,
+  today: StaffToday[], change: StaffChange[], growth = 0, startYear = new Date().getFullYear(),
   calculationYears = 1, rate = DISCOUNT_RATE, baseYear = startYear,
 ) {
   const amounts: FreedTimeAmounts = { totalFreedHours: 0, totalFreedValue: 0,
