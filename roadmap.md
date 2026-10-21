@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Lägg till gemensamma begreppsförklaringar på Resultat, med hover/fokus, tryck på pekskärm och Excel-kommentarer; verifiera.
+
 - [x] Visa all frigjord tid uppdelad i omfördelad/avvecklad, separat ökad tid; uppdatera Excel och AI-underlag utan dubbelräkning och verifiera.
 
 - [x] Förbättra resultatsidans belopp, jämförelsediagram, varningar och avrundning; verifiera Klara och mobilbredder utan ändrad beräkningslogik.
