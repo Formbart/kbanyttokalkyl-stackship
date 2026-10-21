@@ -198,6 +198,74 @@ export function computeProjectCosts(state: AppState) {
 
 export interface Reallocation { hoursFreed: number; valueFreed: number; }
 
+export interface FreedTimeAmounts {
+  totalFreedHours: number;
+  totalFreedValue: number;
+  reallocatedHours: number;
+  reallocatedValue: number;
+  removedHours: number;
+  removedValue: number;
+  increasedHours: number;
+  increasedValue: number;
+}
+
+/** Positive freed time is informational; removed time is already in financial net benefit. */
+export function computeFreedTime(
+  today: StaffToday[], change: StaffChange[], growth = 0, startYear = new Date().getFullYear(),
+  calculationYears = 1, rate = DISCOUNT_RATE, baseYear = startYear,
+) {
+  const amounts: FreedTimeAmounts = { totalFreedHours: 0, totalFreedValue: 0,
+    reallocatedHours: 0, reallocatedValue: 0, removedHours: 0, removedValue: 0,
+    increasedHours: 0, increasedValue: 0 };
+  const matches = matchStaffRows(today, change);
+  const rows = change.flatMap((c, index) => {
+    const match = matches[index];
+    const t = match == null ? undefined : today[match];
+    if (!t) return [];
+    const difference = (t.hours || 0) * (t.count ?? 1) - (c.hours || 0) * (c.count ?? 1);
+    const freedHours = Math.max(0, difference);
+    const increasedHours = Math.max(0, -difference);
+    const freedValue = staffAnnualCost(t.salary, freedHours, 1);
+    const increasedValue = staffAnnualCost(t.salary, increasedHours, 1);
+    amounts.totalFreedHours += freedHours;
+    amounts.totalFreedValue += freedValue;
+    amounts.increasedHours += increasedHours;
+    amounts.increasedValue += increasedValue;
+    if (c.benefitType === "Omfördelningsnytta ↺") {
+      amounts.reallocatedHours += freedHours;
+      amounts.reallocatedValue += freedValue;
+    } else {
+      amounts.removedHours += freedHours;
+      amounts.removedValue += freedValue;
+    }
+    return [{ changeIndex: index, todayIndex: match, role: t.role, benefitType: c.benefitType,
+      desc: c.desc, freedHours, freedValue, increasedHours, increasedValue }];
+  });
+  const perYear = years(startYear, calculationYears).map((year) => {
+    const factor = Math.pow(1 + (growth || 0) / 100, year - baseYear);
+    const discount = Math.pow(1 + rate, year - baseYear);
+    const annual = { ...amounts, totalFreedValue: amounts.totalFreedValue * factor,
+      reallocatedValue: amounts.reallocatedValue * factor, removedValue: amounts.removedValue * factor,
+      increasedValue: amounts.increasedValue * factor };
+    const npv = { totalFreedValue: annual.totalFreedValue / discount,
+      reallocatedValue: annual.reallocatedValue / discount, removedValue: annual.removedValue / discount,
+      increasedValue: annual.increasedValue / discount };
+    return { year, ...annual, npv };
+  });
+  const totals = perYear.reduce<FreedTimeAmounts>((sum, row) => ({
+    totalFreedHours: sum.totalFreedHours + row.totalFreedHours,
+    totalFreedValue: sum.totalFreedValue + row.npv.totalFreedValue,
+    reallocatedHours: sum.reallocatedHours + row.reallocatedHours,
+    reallocatedValue: sum.reallocatedValue + row.npv.reallocatedValue,
+    removedHours: sum.removedHours + row.removedHours,
+    removedValue: sum.removedValue + row.npv.removedValue,
+    increasedHours: sum.increasedHours + row.increasedHours,
+    increasedValue: sum.increasedValue + row.npv.increasedValue,
+  }), { ...amounts, totalFreedHours: 0, totalFreedValue: 0, reallocatedHours: 0,
+    reallocatedValue: 0, removedHours: 0, removedValue: 0, increasedHours: 0, increasedValue: 0 });
+  return { ...amounts, rows, perYear, totals };
+}
+
 export function computeReallocation(today: StaffToday[], change: StaffChange[]): Reallocation {
   const matches = matchStaffRows(today, change);
   let hoursFreed = 0;

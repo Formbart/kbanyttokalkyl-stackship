@@ -68,6 +68,7 @@ export function StepNav({
             <li key={s.id} className="shrink-0 lg:shrink">
               <button
                 type="button"
+                data-step={s.id}
                 onClick={() => onSelect(s.id)}
                 aria-current={active ? "step" : undefined}
                 className={cn(

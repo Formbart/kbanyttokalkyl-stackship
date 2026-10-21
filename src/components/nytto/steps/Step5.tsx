@@ -27,6 +27,7 @@ import {
   KpiCard,
   SectionCard,
 } from "../shared";
+import { FreedTimeSection } from "../FreedTimeSection";
 import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
   baseYearOf,
@@ -36,6 +37,7 @@ import {
   NO_BREAK_EVEN,
   computeNetBenefit,
   computeQualitative,
+  computeFreedTime,
   computeReallocation,
   computeReallocationOverPeriod,
   formatKr,
@@ -68,6 +70,8 @@ export function Step5() {
 
   const { todayCalc, changeCalc } = computeProjectCosts(state);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
+  const freedTime = computeFreedTime(state.costToday.staff, state.costChange.staff, state.costToday.growth,
+    state.project.startYear, calcYears(state), discountRate(state), baseYearOf(state));
   const net = computeNetBenefit(state, todayCalc, changeCalc);
   const qual = computeQualitative(state);
   const empty = !hasAnyData(state);
@@ -147,6 +151,7 @@ export function Step5() {
         breakEvenYear: net.breakEvenYear,
         freedHoursPerYear: realloc.hoursFreed,
         reallocationBenefit: reallocPeriod.totalValueFreedNPV,
+        freedTime,
       },
     });
     setLoading(false);
@@ -401,44 +406,10 @@ export function Step5() {
         </ul>
       </SectionCard>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard
-          title="Omfördelningsnytta"
-          description="Frigjord tid som används till annat – inte en besparing i budget"
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <KpiCard
-              label={realloc.hoursFreed < 0 ? "Ökad tidsåtgång/år" : "Frigjorda timmar/år"}
-              value={`${formatNumber(Math.abs(realloc.hoursFreed))} h`}
-              tone={realloc.hoursFreed >= 0 ? "positive" : "negative"}
-            />
-            <KpiCard
-              label={realloc.valueFreed < 0 ? "Kostnad för ökad tid/år" : "Värde av frigjord tid/år"}
-              value={formatKrCompact(Math.abs(realloc.valueFreed))}
-          exactValue={formatKr(Math.abs(realloc.valueFreed))}
-              tone={realloc.valueFreed >= 0 ? "positive" : "negative"}
-            />
-            <KpiCard
-              label={`Timmar under hela perioden (${calcYears(state)} år)`}
-              value={`${formatNumber(reallocPeriod.totalHoursFreed)} h`}
-              tone={reallocPeriod.totalHoursFreed >= 0 ? "positive" : "negative"}
-            />
-            <KpiCard
-              label="Omfördelningsnytta (nuvärde)"
-              value={formatKrCompact(reallocPeriod.totalValueFreedNPV)}
-          exactValue={formatKr(reallocPeriod.totalValueFreedNPV)}
-              tone={reallocPeriod.totalValueFreedNPV >= 0 ? "positive" : "negative"}
-            />
-          </div>
-          {realloc.hoursFreed === 0 && realloc.valueFreed === 0 && (
-            <p className="mt-4 rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand-dark">
-              Inget att räkna på än. Lägg till personalrader i <strong>steg 2
-              (idag)</strong> och <strong>steg 3 (vid förändring)</strong> med
-              samma yrkesroll, sätt nyttotyp ”Omfördelningsnytta ↺” på raden i
-              steg 3 och ange färre timmar där än idag.
-            </p>
-          )}
-        </SectionCard>
+      <div className="space-y-6">
+        <FreedTimeSection freedTime={freedTime} onOpenChange={() => {
+          document.querySelector<HTMLButtonElement>('[data-step="3"]')?.click();
+        }} />
 
         <SectionCard
           title="Kvalitativa nyttor och miljönyttor"

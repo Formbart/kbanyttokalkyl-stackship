@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HyperFormula } from "hyperformula";
 import { buildNyttokalkylWorkbook } from "./exportExcel";
-import { baseYearOf, computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, migrateState, staffAnnualCost, NO_BREAK_EVEN } from "./calc";
+import { baseYearOf, computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, computeFreedTime, migrateState, staffAnnualCost, NO_BREAK_EVEN } from "./calc";
 import { emptyCostItem, emptyStaffChange, emptyStaffToday, initialState, type AppState } from "./types";
 
 export function klaraFixture() {
@@ -276,6 +276,119 @@ describe("Excel formula recalculation", () => {
     }
     const buffer = await workbook.xlsx.writeBuffer();
     expect(buffer.byteLength).toBeGreaterThan(1000);
+    engine.destroy();
+  });
+});
+
+
+describe("all freed time without double counting", () => {
+  const getFreed = (state: AppState) => computeFreedTime(state.costToday.staff, state.costChange.staff,
+    state.costToday.growth, state.project.startYear, state.project.calculationYears, 0.03, 2026);
+  it("reports 176000 reallocated hours and approximately 78801899 kr per year", () => {
+    const state = klaraFixture();
+    const freed = getFreed(state);
+    expect(freed.totalFreedHours).toBe(176000);
+    expect(freed.reallocatedHours).toBe(176000);
+    expect(freed.removedHours).toBe(0);
+    expect(freed.totalFreedValue).toBeCloseTo(78801899.3856, 4);
+    const costs = computeProjectCosts(state);
+    const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
+    expect(net.totalNetIncl - net.totalNet).toBeCloseTo(freed.totals.reallocatedValue, 4);
+    expect(freed.perYear[1]?.npv.totalFreedValue).toBeCloseTo(78801899.3856 * 1.02 / 1.03, 4);
+    expect(freed.totals.totalFreedHours).toBe(704000);
+  });
+  it("reports financial removal but never adds it to net benefit twice", () => {
+    const state = klaraFixture();
+    const row = state.costChange.staff[0];
+    if (!row) throw new Error("Missing teacher");
+    row.benefitType = "Finansiell nytta 💰";
+    state.costChange.items = [];
+    const freed = getFreed(state);
+    expect(freed.totalFreedHours).toBe(176000);
+    expect(freed.reallocatedHours).toBe(0);
+    expect(freed.removedHours).toBe(176000);
+    const costs = computeProjectCosts(state);
+    const net = computeNetBenefit(state, costs.todayCalc, costs.changeCalc);
+    expect(net.perYear[0]?.net).toBeCloseTo(78801899.3856, 4);
+    expect(net.totalNetIncl - net.totalNet).toBe(0);
+    expect(net.perYear.map((r) => r.reallocation)).toEqual([0, 0, 0, 0]);
+  });
+  it("matches two rows of the same role once and splits 70400 / 105600 hours", () => {
+    const state = klaraFixture();
+    const teacher = state.costToday.staff[0];
+    const changed = state.costChange.staff[0];
+    if (!teacher || !changed) throw new Error("Missing teacher");
+    state.costToday.staff = [{ ...teacher, id: "financial", count: 400 }, { ...teacher, id: "reallocated", count: 600 }];
+    state.costChange.staff = [{ ...changed, todayId: "reallocated", count: 600 },
+      { ...changed, todayId: "financial", count: 400, benefitType: "Finansiell nytta 💰" }];
+    const freed = getFreed(state);
+    expect(freed.totalFreedHours).toBe(176000);
+    expect(freed.removedHours).toBe(70400);
+    expect(freed.reallocatedHours).toBe(105600);
+    expect(freed.removedValue + freed.reallocatedValue).toBeCloseTo(78801899.3856, 4);
+  });
+  it("separates increased hours rather than reporting negative freed time", () => {
+    const state = klaraFixture();
+    const row = state.costChange.staff[0];
+    if (!row) throw new Error("Missing teacher");
+    row.hours = 1936;
+    const freed = getFreed(state);
+    expect(freed.increasedHours).toBe(176000);
+    expect(freed.increasedValue).toBeCloseTo(78801899.3856, 4);
+    expect(freed.totalFreedHours).toBe(0);
+    expect(freed.totalFreedValue).toBe(0);
+    expect(freed.reallocatedHours).toBe(0);
+  });
+  it.each(["reallocated", "removed", "mixed", "increased"])("recalculates Excel time formulas for %s", (mode) => {
+    const state = klaraFixture();
+    const teacher = state.costToday.staff[0];
+    const changed = state.costChange.staff[0];
+    if (!teacher || !changed) throw new Error("Missing teacher");
+    if (mode === "removed") changed.benefitType = "Finansiell nytta 💰";
+    if (mode === "increased") changed.hours = 1936;
+    if (mode === "mixed") {
+      state.costToday.staff = [{ ...teacher, id: "f", count: 400 }, { ...teacher, id: "r", count: 600 }];
+      state.costChange.staff = [{ ...changed, todayId: "f", count: 400, benefitType: "Finansiell nytta 💰" }, { ...changed, todayId: "r", count: 600 }];
+      state.costToday.items = [{ ...emptyCostItem(2026), costPerYear: 123 }];
+    }
+    const freed = getFreed(state);
+    const workbook = buildNyttokalkylWorkbook(state);
+    const sheets: Record<string, (string | number | boolean | null)[][]> = {};
+    for (const ws of workbook.worksheets) {
+      const sheetRows: (string | number | boolean | null)[][] = [];
+      sheets[ws.name] = sheetRows;
+      ws.eachRow({ includeEmpty: true }, (row) => {
+        const values: (string | number | boolean | null)[] = [];
+        for (let c = 1; c <= Math.max(10, ws.columnCount); c++) {
+          const v = row.getCell(c).value;
+          values.push(v && typeof v === "object" && "formula" in v ? `=${v.formula}` : typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? v : null);
+        }
+        sheetRows.push(values);
+      });
+    }
+    const engine = HyperFormula.buildFromSheets(sheets, { licenseKey: "gpl-v3", precisionRounding: 15 });
+    const ws = workbook.getWorksheet("5 Resultat");
+    const id = engine.getSheetId("5 Resultat");
+    if (!ws || id === undefined) throw new Error("Missing result");
+    const expected = new Map<string, number>([
+      ["Frigjord tid totalt – timmar/år", freed.totalFreedHours],
+      ["varav omfördelad – timmar/år", freed.reallocatedHours],
+      ["varav avvecklad – timmar/år", freed.removedHours],
+      ["Ökad tidsåtgång – timmar/år", freed.increasedHours],
+      ["Frigjord tid totalt – värde/år (kr)", freed.totalFreedValue],
+      ["Frigjord tid totalt – nuvärde (kr)", freed.totals.totalFreedValue],
+      ["varav omfördelad – nuvärde (kr)", freed.totals.reallocatedValue],
+      ["varav avvecklad – nuvärde (kr)", freed.totals.removedValue],
+      ["Ökad tidsåtgång – nuvärde (kr)", freed.totals.increasedValue],
+    ]);
+    let assertions = 0;
+    ws.eachRow((row) => {
+      const value = expected.get(String(row.getCell(1).value));
+      if (value === undefined) return;
+      expect(engine.getCellValue({ sheet: id, row: row.number - 1, col: 1 })).toBeCloseTo(value, 4);
+      assertions++;
+    });
+    expect(assertions).toBe(9);
     engine.destroy();
   });
 });
