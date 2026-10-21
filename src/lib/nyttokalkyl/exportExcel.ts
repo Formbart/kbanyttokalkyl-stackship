@@ -9,6 +9,7 @@ import {
   computeNetBenefit,
   computeQualitative,
   computeReallocation,
+  computeFreedTime,
   computeProjectCosts,
   discountRate,
   matchStaffRows,
@@ -335,6 +336,7 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   section(result, 4, "Nyckeltal", 8);
   const net = computeNetBenefit(state, todayCalc, changeCalc);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
+  const freedTime = computeFreedTime(state.costToday.staff, state.costChange.staff, state.costToday.growth, state.project.startYear, calcYears(state), discountRate(state), baseYear);
   const addMetric = (label: string, value: ExcelJS.CellValue, format = currencyFormat) => {
     const row = result.addRow([label, value]);
     formula(row.getCell(2), format, true);
@@ -344,6 +346,10 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   addMetric("Kostnad förändring, nuvärde (kr)", { formula: `'${change.worksheet.name}'!${change.totalCell}`, result: changeCalc.npvSum });
   const freedTerms: string[] = [];
   const valueTerms: string[] = [];
+  const split = { total: { hours: [] as string[], values: [] as string[] },
+    reallocated: { hours: [] as string[], values: [] as string[] },
+    removed: { hours: [] as string[], values: [] as string[] },
+    increased: { hours: [] as string[], values: [] as string[] } };
   const matches = matchStaffRows(state.costToday.staff, state.costChange.staff);
   state.costChange.staff.forEach((_, i) => {
     const match = matches[i];
@@ -351,11 +357,30 @@ export function buildNyttokalkylWorkbook(state: AppState) {
     const c = change.staffRows[i];
     if (t == null || c == null) return;
     const hours = `('${today.worksheet.name}'!B${t}*'${today.worksheet.name}'!E${t}-'${change.worksheet.name}'!B${c}*'${change.worksheet.name}'!E${c})`;
+    const hourly = `'${today.worksheet.name}'!D${t}*12*(1+'${today.worksheet.name}'!$D$5)/'${today.worksheet.name}'!$F$5`;
+    const terms = { total: `MAX(0,${hours})`,
+      reallocated: `IF('${change.worksheet.name}'!F${c}="Omfördelningsnytta ↺",MAX(0,${hours}),0)`,
+      removed: `IF('${change.worksheet.name}'!F${c}="Finansiell nytta 💰",MAX(0,${hours}),0)`,
+      increased: `MAX(0,-${hours})` };
+    for (const key of Object.keys(split) as (keyof typeof split)[]) {
+      split[key].hours.push(terms[key]);
+      split[key].values.push(`(${terms[key]})*${hourly}`);
+    }
     freedTerms.push(`IF('${change.worksheet.name}'!F${c}="Omfördelningsnytta ↺",${hours},0)`);
     valueTerms.push(`IF('${change.worksheet.name}'!F${c}="Omfördelningsnytta ↺",${hours}*'${today.worksheet.name}'!D${t}*12*(1+'${today.worksheet.name}'!$D$5)/'${today.worksheet.name}'!$F$5,0)`);
   });
-  const hoursCell = addMetric("Frigjorda timmar/år", { formula: freedTerms.join("+") || "0", result: realloc.hoursFreed }, numberFormat);
+  addMetric("Frigjorda timmar/år", { formula: freedTerms.join("+") || "0", result: realloc.hoursFreed }, numberFormat);
   const valueCell = addMetric("Värde av frigjord tid/år (kr)", { formula: valueTerms.join("+") || "0", result: realloc.valueFreed });
+  const breakdown = [
+    { key: "total" as const, label: "Frigjord tid totalt", hours: freedTime.totalFreedHours, value: freedTime.totalFreedValue, npv: freedTime.totals.totalFreedValue },
+    { key: "reallocated" as const, label: "varav omfördelad", hours: freedTime.reallocatedHours, value: freedTime.reallocatedValue, npv: freedTime.totals.reallocatedValue },
+    { key: "removed" as const, label: "varav avvecklad", hours: freedTime.removedHours, value: freedTime.removedValue, npv: freedTime.totals.removedValue },
+    { key: "increased" as const, label: "Ökad tidsåtgång", hours: freedTime.increasedHours, value: freedTime.increasedValue, npv: freedTime.totals.increasedValue },
+  ].map((item) => ({ ...item,
+    hoursCell: addMetric(`${item.label} – timmar/år`, { formula: split[item.key].hours.join("+") || "0", result: item.hours }, numberFormat),
+    valueCell: addMetric(`${item.label} – värde/år (kr)`, { formula: split[item.key].values.join("+") || "0", result: item.value }),
+    npvCell: addMetric(`${item.label} – nuvärde (kr)`, 0),
+  }));
   const netCell = addMetric("Finansiell nettonytta (nuvärde)", 0);
   const reallocCell = addMetric("Omfördelningsnytta (nuvärde)", 0);
   const inclCell = addMetric("Nettonytta inklusive omfördelning", 0);
@@ -385,6 +410,38 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   result.getCell(inclCell).value = { formula: `${netCell}+${reallocCell}`, result: net.totalNetIncl };
   result.getCell(breakCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(D${r}>=0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYear };
   result.getCell(breakInclCell).value = { formula: resultRows.reduceRight((tail, r) => `IF(E${r}>=0,A${r},${tail})`, `"${NO_BREAK_EVEN}"`), result: net.breakEvenYearIncl };
+  section(result, result.rowCount + 2, "All frigjord personaltid – separat uppdelning", 8);
+  result.addRow(["Avvecklad tid ingår redan i finansiell nettonytta och läggs aldrig till igen. Ökad tidsåtgång redovisas separat. Värde/år anges i basårets priser."]);
+  header(result.addRow(["År", ...breakdown.map((item) => `${item.label} – nuvärde (kr)`)]));
+  const timeRows = freedTime.perYear.map((item) => {
+    const row = result.addRow([item.year, ...breakdown.map((group) => {
+      const exponent = `(A${result.rowCount + 1}-${BASE_YEAR_REF})`;
+      const cached = group.key === "total" ? item.npv.totalFreedValue : group.key === "reallocated" ? item.npv.reallocatedValue : group.key === "removed" ? item.npv.removedValue : item.npv.increasedValue;
+      return { formula: `${group.valueCell}*(1+'${today.worksheet.name}'!$B$5)^${exponent}/(1+'${today.worksheet.name}'!$H$5)^${exponent}`, result: cached };
+    })]);
+    for (let c = 2; c <= 5; c++) formula(row.getCell(c), currencyFormat);
+    return row.number;
+  });
+  breakdown.forEach((group, index) => {
+    const column = String.fromCharCode(66 + index);
+    result.getCell(group.npvCell).value = { formula: `SUM(${column}${timeRows[0]}:${column}${timeRows[timeRows.length - 1]})`, result: group.npv };
+  });
+  section(result, result.rowCount + 2, "Frigjord tid per befattning", 8);
+  header(result.addRow(["Befattning", "Typ av nytta", "Frigjorda timmar/år", "Värde/år (kr)", "Vad gör medarbetarna med tiden"]));
+  freedTime.rows.forEach((item) => {
+    const t = item.todayIndex == null ? undefined : today.staffRows[item.todayIndex];
+    const c = change.staffRows[item.changeIndex];
+    if (t == null || c == null) return;
+    const r = result.rowCount + 1;
+    const row = result.addRow([
+      { formula: `'${today.worksheet.name}'!A${t}`, result: item.role },
+      { formula: `'${change.worksheet.name}'!F${c}`, result: item.benefitType },
+      { formula: `MAX(0,'${today.worksheet.name}'!B${t}*'${today.worksheet.name}'!E${t}-'${change.worksheet.name}'!B${c}*'${change.worksheet.name}'!E${c})`, result: item.freedHours },
+      { formula: `C${r}*'${today.worksheet.name}'!D${t}*12*(1+'${today.worksheet.name}'!$D$5)/'${today.worksheet.name}'!$F$5`, result: item.freedValue },
+      { formula: `'${change.worksheet.name}'!G${c}`, result: item.desc },
+    ]);
+    formula(row.getCell(3), numberFormat); formula(row.getCell(4), currencyFormat);
+  });
   section(result, result.rowCount + 2, "Kvalitativa nyttor", 8);
   header(result.addRow(["Nytta", "Typ", "Gynnas", "Förflyttning", "Bedömning"]));
   qualRows.forEach((item) => result.addRow([benefitSentence(item.benefit), item.benefit.type, item.benefit.gynnas, item.movement, item.label]));
