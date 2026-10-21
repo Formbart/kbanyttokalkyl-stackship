@@ -1,3 +1,5 @@
+import { agentWebhookUrl } from "./agentConfig";
+
 export type AgentAction =
   | "generate_full_draft"
   | "suggest_benefits"
@@ -19,12 +21,7 @@ export type AgentResult<T = unknown> =
   | ({ success: true; action: AgentAction; data: T } & FactCheckMeta)
   | { success: false; error: string };
 
-const DEFAULT_WEBHOOK_URL =
-  "https://kontakinte113355.app.n8n.cloud/webhook/nyttokalkyl-agent";
-
-const WEBHOOK_URL =
-  (import.meta.env["VITE_N8N_WEBHOOK_URL"] as string | undefined) ||
-  DEFAULT_WEBHOOK_URL;
+const WEBHOOK_URL = agentWebhookUrl;
 
 export function agentConfigured(): boolean {
   return Boolean(WEBHOOK_URL);
@@ -41,11 +38,14 @@ export async function callAgent<T = unknown>(
         "AI-tjänsten är inte konfigurerad. Sätt miljövariabeln VITE_N8N_WEBHOOK_URL till din n8n-webhook.",
     };
   }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, context }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       return { success: false, error: `AI-tjänsten svarade ${res.status}.` };
@@ -54,6 +54,9 @@ export async function callAgent<T = unknown>(
       | ({ success?: boolean; action?: AgentAction; data?: T; error?: string } &
           FactCheckMeta)
       | T;
+    if (json && typeof json === "object" && "success" in json && json.success === false) {
+      return { success: false, error: (json as { error?: string }).error || "AI-tjänsten kunde inte slutföra anropet. Försök igen." };
+    }
     if (json && typeof json === "object" && "data" in json) {
       const j = json as { success?: boolean; data?: T; error?: string } &
         FactCheckMeta;
@@ -74,8 +77,11 @@ export async function callAgent<T = unknown>(
     return {
       success: false,
       error:
+        controller.signal.aborted ? "AI-tjänsten tog för lång tid (90 sekunder). Försök igen." :
         e instanceof Error ? e.message : "Kunde inte nå AI-tjänsten just nu.",
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
