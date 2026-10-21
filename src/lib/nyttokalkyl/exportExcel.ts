@@ -4,6 +4,7 @@ import ExcelJS, {
   type Worksheet,
 } from "exceljs";
 import {
+  baseYearOf,
   computeCostSheet,
   computeNetBenefit,
   computeQualitative,
@@ -116,6 +117,8 @@ function finish(ws: Worksheet, widths: number[]) {
   ws.headerFooter.oddFooter = "Kungsbacka kommun · Nyttokalkyl     Sida &P av &N";
 }
 
+const BASE_YEAR_REF = "'1 Grundinformation'!$H$5";
+
 function addCostSheet(
   workbook: ExcelJS.Workbook,
   name: string,
@@ -124,7 +127,9 @@ function addCostSheet(
   startYear: number,
   nYears: number,
   rate: number,
+  baseYear: number,
   baseline?: { sheet: CostSheet<StaffToday>; exported: ReturnType<typeof addCostSheet> },
+  marginResult?: number,
 ): { worksheet: Worksheet; totalCell: string; yearRows: number[]; staffRows: number[]; marginCell: string } {
   const ws = workbook.addWorksheet(name);
   title(ws, name, subtitle, 10);
@@ -200,7 +205,7 @@ function addCostSheet(
   section(ws, summarySectionRow, "Kostnader per år", 10);
   const summaryHeader = ws.addRow(["År", "Engångskostnader (kr)", "Löpande kostnader (kr)", "Personalkostnader (kr)", "Total kostnad (kr)", "Nuvärde (kr)", "Felmarginal, nuvärde (kr)"]);
   header(summaryHeader);
-  const calc = computeCostSheet(sheet, startYear, nYears, rate, baseline?.sheet);
+  const calc = computeCostSheet(sheet, startYear, nYears, rate, baseline?.sheet, baseYear);
   const yearRows: number[] = [];
   calc.perYear.forEach((calculated, index) => {
     const excelRow = ws.rowCount + 1;
@@ -212,7 +217,7 @@ function addCostSheet(
     sheet.items.forEach((item, index) => {
       const r = itemStart + index;
       const once = `IF(AND($B$${r}="Engångskostnad",$D$${r}<>"",$D$${r}=A${excelRow}),$C$${r},0)`;
-      const recurring = `IF(AND($B$${r}<>"Engångskostnad",$D$${r}<>"",$D$${r}<=A${excelRow}),$C$${r}*(1+$B$5)^(A${excelRow}-$D$${r}),0)`;
+      const recurring = `IF(AND($B$${r}<>"Engångskostnad",$D$${r}<>"",$D$${r}<=A${excelRow}),$C$${r}*(1+$B$5)^(A${excelRow}-${BASE_YEAR_REF}),0)`;
       oneTimeTerms.push(once); recurringTerms.push(recurring);
       marginTerms.push(`ABS(${once}+${recurring})*$E$${r}`);
     });
@@ -222,23 +227,37 @@ function addCostSheet(
       const match = matches[j];
       const baselineRow = match == null ? undefined : baseline?.exported.staffRows[match];
       const growth = baseline && baselineRow ? `IF(F${r}="Omfördelningsnytta ↺",'${baseline.exported.worksheet.name}'!$B$5,$B$5)` : "$B$5";
-      return `$H$${r}*(1+${growth})^(A${excelRow}-$A$${yearRows[0]})`;
+      return `$H$${r}*(1+${growth})^(A${excelRow}-${BASE_YEAR_REF})`;
     }).join("+") || "0";
+    // Personalmarginalen slår bara på skillnaden mot nuläget (0 för speglade/omfördelade rader).
+    if (baseline) {
+      staffRows.forEach((r, j) => {
+        const match = matches[j];
+        const baselineRow = match == null ? undefined : baseline.exported.staffRows[match];
+        if (baselineRow == null) {
+          marginTerms.push(`ABS($H$${r}*(1+$B$5)^(A${excelRow}-${BASE_YEAR_REF}))*$J$5`);
+        } else {
+          const changeSide = `$H$${r}*(1+$B$5)^(A${excelRow}-${BASE_YEAR_REF})`;
+          const todaySide = `'${baseline.exported.worksheet.name}'!$H$${baselineRow}*(1+'${baseline.exported.worksheet.name}'!$B$5)^(A${excelRow}-${BASE_YEAR_REF})`;
+          marginTerms.push(`IF($F$${r}="Omfördelningsnytta ↺",0,ABS(${changeSide}-${todaySide})*$J$5)`);
+        }
+      });
+    }
     const row = ws.addRow([
       year,
       { formula: oneTimeFormula, result: calculated.oneTime },
       { formula: recurringFormula, result: calculated.recurring },
       { formula: staffFormula, result: calculated.staffCost },
       { formula: `SUM(B${excelRow}:D${excelRow})`, result: calculated.total },
-      { formula: `E${excelRow}/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})`, result: calculated.npv },
-      { formula: `(${[...marginTerms, `ABS(D${excelRow})*$J$5`].join("+")})/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})` },
+      { formula: `E${excelRow}/(1+$H$5)^(A${excelRow}-${BASE_YEAR_REF})`, result: calculated.npv },
+      { formula: `(${marginTerms.join("+") || "0"})/(1+$H$5)^(A${excelRow}-${BASE_YEAR_REF})` },
     ]);
     input(row.getCell(1));
     for (let column = 2; column <= 7; column += 1) formula(row.getCell(column), currencyFormat);
   });
   const totalRowNumber = ws.rowCount + 1;
   const totalRow = ws.addRow(["Totalt nuvärde", "", "", "", "", { formula: `SUM(F${yearRows[0]}:F${yearRows[yearRows.length - 1]})`, result: calc.npvSum }]);
-  totalRow.getCell(7).value = { formula: `SUM(G${yearRows[0]}:G${yearRows[yearRows.length - 1]})`, result: calc.marginSum };
+  totalRow.getCell(7).value = { formula: `SUM(G${yearRows[0]}:G${yearRows[yearRows.length - 1]})`, result: marginResult ?? calc.marginSum };
   formula(totalRow.getCell(7), currencyFormat);
   totalRow.font = { name: "Arial", bold: true };
   formula(totalRow.getCell(6), currencyFormat);
