@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { AiButton, EmptyState, SectionCard } from "../shared";
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import { computeQualitative, movementLabel } from "@/lib/nyttokalkyl/calc";
 import {
   RANK_OPTIONS,
@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function Step4() {
+  const callAgent = useCalculationAgent();
   const { state, setState, setQualRating } = useNyttokalkyl();
   const rows = computeQualitative(state);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);

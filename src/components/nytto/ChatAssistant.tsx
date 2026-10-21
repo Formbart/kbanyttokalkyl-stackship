@@ -4,10 +4,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
-import { callAgent, type ChatMessage } from "@/lib/nyttokalkyl/agent";
+import type { ChatMessage } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import type { AppState } from "@/lib/nyttokalkyl/types";
 
 export function ChatAssistant() {
+  const callAgent = useCalculationAgent();
   const { state, setState } = useNyttokalkyl();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -32,8 +34,8 @@ export function ChatAssistant() {
       return;
     }
     const data = res.data ?? {};
-    if (data.reply)
-      setHistory((h) => [...h, { role: "assistant", content: data.reply! }]);
+    const reply = data.reply;
+    if (reply) setHistory((h) => [...h, { role: "assistant", content: reply }]);
     setPatch(data.suggestedPatch ?? null);
   };
 

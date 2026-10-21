@@ -5,12 +5,14 @@ import { Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import { ErrorBanner, FactCheckBadge, SectionCard } from "./shared";
-import { callAgent, type ChatMessage } from "@/lib/nyttokalkyl/agent";
+import type { ChatMessage } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
   emptyCostItem,
   emptyStaffChange,
   emptyStaffToday,
   initialState,
+  FULL_TIME_HOURS,
   type AppState,
   type Benefit,
   type CostItem,
@@ -44,7 +46,8 @@ export function StartChat({
   onDone: (assumptions: string | null) => void;
   onSkip: () => void;
 }) {
-  const { setState } = useNyttokalkyl();
+  const callAgent = useCalculationAgent();
+  const { state, setState } = useNyttokalkyl();
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState<DraftPayload | null>(null);
@@ -70,13 +73,15 @@ export function StartChat({
     setLoading(false);
     if (!res.success) {
       setError(res.error);
+      toast.error(res.error);
       return;
     }
     const data = res.data ?? {};
     setFactCheck({ factChecked: res.factChecked, report: res.factCheckReport });
     setDraft(data);
     if (data.chatReply) {
-      setHistory((h) => [...h, { role: "assistant", content: data.chatReply! }]);
+      const reply = data.chatReply;
+      setHistory((h) => [...h, { role: "assistant", content: reply }]);
     }
   };
 
@@ -116,6 +121,8 @@ export function StartChat({
         alt1: draft.project?.alt1 ?? "",
         alt2: draft.project?.alt2 ?? "",
         startYear,
+        calculationYears: draft.project?.calculationYears ?? state.project.calculationYears ?? 6,
+        discountRate: draft.project?.discountRate ?? state.project.discountRate ?? 3,
         benefits: benefits.slice(0, 5),
         stakeholders: draft.project?.stakeholders ?? "",
       },
@@ -130,8 +137,8 @@ export function StartChat({
           ...emptyStaffToday(),
           ...r,
           salary: Number(r.salary) || 0,
-          hours: Number(r.hours) || 0,
-          count: Number(r.count) || 1,
+          hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+          count: r.count == null ? 1 : Number(r.count) || 0,
         })),
       },
       costChange: {
@@ -145,8 +152,8 @@ export function StartChat({
           ...emptyStaffChange(),
           ...r,
           salary: Number(r.salary) || 0,
-          hours: Number(r.hours) || 0,
-          count: Number(r.count) || 1,
+          hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+          count: r.count == null ? 1 : Number(r.count) || 0,
         })),
       },
       qualRatings,

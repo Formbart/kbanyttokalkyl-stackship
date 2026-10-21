@@ -8,7 +8,7 @@ import { AiButton, EmptyState, Field, SectionCard } from "../shared";
 import { SurveyTab } from "../SurveyTab";
 import { SurveyResultsTab } from "../SurveyResultsTab";
 
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
   QUALITATIVE_TYPES,
   benefitSentence,
@@ -19,12 +19,14 @@ import {
 
 
 export function Step6() {
+  const callAgent = useCalculationAgent();
   const { state, setFollowUp } = useNyttokalkyl();
   const benefits = state.project.benefits;
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   const suggestFollowUp = async (index: number) => {
-    const b = benefits[index]!;
+    const b = benefits[index];
+    if (!b) return;
     setLoadingIndex(index);
     const isQualitative = QUALITATIVE_TYPES.includes(b.type as BenefitType);
     const res = await callAgent<Partial<Omit<FollowUp, "resultat">>>(
@@ -101,7 +103,7 @@ export function Step6() {
                     Enkätförslag
                     {state.surveys[i] ? (
                       <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-primary-foreground">
-                        {state.surveys[i]!.questions.length}
+                        {state.surveys[i]?.questions.length}
                       </span>
                     ) : null}
                   </TabsTrigger>
@@ -109,7 +111,7 @@ export function Step6() {
                     Enkätresultat
                     {state.surveyResults[i] ? (
                       <span className="rounded-full bg-brand px-1.5 text-[10px] font-semibold text-primary-foreground">
-                        {state.surveyResults[i]!.responseCount}
+                        {state.surveyResults[i]?.responseCount}
                       </span>
                     ) : null}
                   </TabsTrigger>

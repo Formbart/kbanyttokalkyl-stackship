@@ -25,7 +25,7 @@ import {
   KpiCard,
   SectionCard,
 } from "../shared";
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
   calcYears,
   computeProjectCosts,
@@ -52,6 +52,7 @@ interface Review {
 
 
 export function Step5() {
+  const callAgent = useCalculationAgent();
   const { state, setState } = useNyttokalkyl();
   const [loading, setLoading] = useState(false);
   const [review, setReview] = useState<Review | null>(null);

@@ -26,7 +26,7 @@ import {
   SectionCard,
   WarningBanner,
 } from "./shared";
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import { usePositions } from "@/hooks/usePositions";
 import { positionLabel } from "@/lib/nyttokalkyl/positionLabel";
 import {
@@ -85,6 +85,7 @@ function CostLabel() {
 type Scenario = "today" | "change";
 
 export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
+  const callAgent = useCalculationAgent();
   const { state, setState } = useNyttokalkyl();
   const { personalData } = usePositions();
   const key = scenario === "today" ? "costToday" : "costChange";

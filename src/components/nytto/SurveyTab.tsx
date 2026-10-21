@@ -32,7 +32,7 @@ import {
 import { toast } from "sonner";
 import { AiButton, Field } from "./shared";
 import { buildFormsText, downloadSurveyDocx } from "@/lib/nyttokalkyl/formsExport";
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
   QUALITATIVE_TYPES,
@@ -99,6 +99,7 @@ export function SurveyTab({
   index: number;
   benefit: Benefit;
 }) {
+  const callAgent = useCalculationAgent();
   const { state, setSurvey } = useNyttokalkyl();
   const survey = state.surveys[index];
   const followUp = state.followUp[index];

@@ -22,7 +22,7 @@ import {
   SectionCard,
   WarningBanner,
 } from "../shared";
-import { callAgent } from "@/lib/nyttokalkyl/agent";
+import { useCalculationAgent } from "@/hooks/useCalculationAgent";
 import {
   BENEFICIARY,
   BENEFIT_TYPES,
@@ -46,6 +46,7 @@ export function Step1({
   assumptions?: string | null;
   onDismissAssumptions?: () => void;
 }) {
+  const callAgent = useCalculationAgent();
   const { state, setState, updateProject } = useNyttokalkyl();
   const { project } = state;
   const [loading, setLoading] = useState(false);
