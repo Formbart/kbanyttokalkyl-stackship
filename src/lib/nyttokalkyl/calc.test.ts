@@ -166,3 +166,14 @@ describe("Excel formula recalculation", () => {
     engine.destroy();
   });
 });
+describe("staff margin", () => {
+  it("adds 5 percent staff margin by default to the scenario spread", () => {
+    const state = initialState();
+    state.project.calculationYears = 1;
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    const { todayCalc } = computeProjectCosts(state);
+    expect(todayCalc.marginSum).toBeCloseTo(538521.6 * 0.05, 2);
+    state.costToday.staffMargin = 0;
+    expect(computeProjectCosts(state).todayCalc.marginSum).toBe(0);
+  });
+});

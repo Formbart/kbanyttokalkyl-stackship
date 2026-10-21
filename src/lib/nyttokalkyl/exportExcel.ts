@@ -27,6 +27,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "./types";
+import { staffMarginOf } from "./types";
 
 const COLORS = {
   brand: "FF255E57",
@@ -128,7 +129,8 @@ function addCostSheet(
   const ws = workbook.addWorksheet(name);
   title(ws, name, subtitle, 10);
   section(ws, 4, "Antaganden", 10);
-  ws.addRow(["Årlig kostnadsökning", sheet.growth / 100, "PO-påslag", PO_FACTOR - 1, "Heltidsmått (h/år)", FULL_TIME_HOURS, "Diskonteringsränta", { formula: "'1 Grundinformation'!F5", result: rate }]);
+  ws.addRow(["Årlig kostnadsökning", sheet.growth / 100, "PO-påslag", PO_FACTOR - 1, "Heltidsmått (h/år)", FULL_TIME_HOURS, "Diskonteringsränta", { formula: "'1 Grundinformation'!F5", result: rate }, "Felmarginal personal", staffMarginOf(sheet) / 100]);
+  input(ws.getCell("J5"), percentFormat);
   formula(ws.getCell("H5"), percentFormat, true);
   [ws.getCell("B5"), ws.getCell("D5")].forEach((cell) => input(cell, percentFormat));
   input(ws.getCell("F5"), numberFormat);
@@ -229,7 +231,7 @@ function addCostSheet(
       { formula: staffFormula, result: calculated.staffCost },
       { formula: `SUM(B${excelRow}:D${excelRow})`, result: calculated.total },
       { formula: `E${excelRow}/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})`, result: calculated.npv },
-      { formula: `(${marginTerms.join("+") || "0"})/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})` },
+      { formula: `(${[...marginTerms, `ABS(D${excelRow})*$J$5`].join("+")})/(1+$H$5)^(A${excelRow}-$A$${yearRows[0]})` },
     ]);
     input(row.getCell(1));
     for (let column = 2; column <= 7; column += 1) formula(row.getCell(column), currencyFormat);

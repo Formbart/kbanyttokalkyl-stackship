@@ -46,6 +46,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
+import { DEFAULT_STAFF_MARGIN } from "@/lib/nyttokalkyl/types";
 import { calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
@@ -699,6 +700,19 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               value={sheet.growth || ""}
               placeholder="0"
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
+            />
+          </Field>
+          <Field label="Felmarginal personal (%)" hint="Osäkerhet i personalkostnaderna, används i bästa/sämsta scenario.">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              className="num"
+              value={sheet.staffMargin ?? DEFAULT_STAFF_MARGIN}
+              onChange={(e) => {
+                const staffMargin = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                setState((s) => ({ ...s, [key]: { ...s[key], staffMargin } }) as typeof s);
+              }}
             />
           </Field>
           <Field label="Diskonteringsränta (%)" hint="Gemensamt antagande för hela kalkylen.">
