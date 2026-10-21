@@ -47,7 +47,7 @@ import {
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
 import { DEFAULT_STAFF_MARGIN } from "@/lib/nyttokalkyl/types";
-import { baseYearOf, calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { baseYearOf, calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, formatNumber, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
 function CostLabel() {
@@ -301,7 +301,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     <div className="space-y-6">
       <SectionCard
         title="Kostnadsposter"
-        description={scenario === "today" ? "Här anges bara kostnader som finns i nuläget och som finns kvar om förändringen inte genomförs. Investeringar och kostnader för det nya arbetssättet läggs i Kostnad förändring." : "Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad."}
+        description={(scenario === "today" ? "Här anges bara kostnader som finns i nuläget och som finns kvar om förändringen inte genomförs. Investeringar och kostnader för det nya arbetssättet läggs i Kostnad förändring." : "Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad.") + ` Ange belopp i ${baseYear}-års priser.`}
         action={
           <AiButton onClick={() => void suggestCosts()} loading={loading}>
             Föreslå kostnader med AI
@@ -310,6 +310,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       >
         {scenario === "today" && sheet.items.some((it) => it.type === "Engångskostnad" && it.startYear !== null && it.startYear >= startYear) && (
           <WarningBanner>Kontrollera engångskostnaden: investeringar för det nya arbetssättet hör till Kostnad förändring.</WarningBanner>
+        )}
+        {startYear < baseYear && (
+          <WarningBanner>Startåret ({startYear}) ligger före basåret ({baseYear}) — kontrollera prisnivån i steg 1.</WarningBanner>
         )}
         {suggestion && (
           <div className="mb-5 space-y-3 rounded-xl border border-brand/30 bg-brand-soft p-4">
@@ -824,7 +827,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         </Button>
 
         <div className="mt-6 grid max-w-xl gap-4 sm:grid-cols-2">
-          <Field label="Årlig kostnadsökning (%)" hint="Drift räknas upp från postens startår; personal från kalkylperiodens första år.">
+          <Field label="Årlig kostnadsökning (%)" hint={`Löpande kostnader och personal räknas upp från basåret (${baseYear}). Engångskostnader räknas inte upp.`}>
             <Input
               type="number"
               className="num"
@@ -833,7 +836,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
             />
           </Field>
-          <Field label="Felmarginal personal (%)" hint="Osäkerhet i personalkostnaderna, används i bästa/sämsta scenario.">
+          <Field label="Felmarginal personal (%)" hint="Slår bara på det som skiljer alternativen åt — oförändrade och omfördelade rader bidrar inte.">
             <Input
               type="number"
               min={0}
@@ -855,7 +858,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
 
       <SectionCard
         title={`Beräknad kostnad ${startYear}–${startYear + nYears - 1}`}
-        description={`Nuvärde beräknas med ${discountRate(state) * 100} % diskonteringsränta från kalkylperiodens första år.`}
+        description={`Nuvärde beräknas med ${discountRate(state) * 100} % diskonteringsränta och avser basåret ${baseYear}.`}
       >
         {scenario === "today" ? (
           <div className="no-print mb-4 flex flex-wrap items-center gap-3">
