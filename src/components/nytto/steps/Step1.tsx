@@ -179,7 +179,7 @@ export function Step1({
           </div>
           <Field
             label="Startår"
-            hint="Styr den sexåriga kalkylperioden i steg 2, 3 och 5."
+            hint="Styr kalkylperiodens första år i steg 2, 3 och 5."
           >
             <Input
               type="number"

@@ -25,7 +25,9 @@ describe("Klara and financial separation", () => {
     const { todayCalc, changeCalc } = computeProjectCosts(state);
     expect(changeCalc.perYear.map((r) => r.staffCost)).toEqual(todayCalc.perYear.map((r) => r.staffCost));
     const net = computeNetBenefit(state, todayCalc, changeCalc);
-    expect(net.totalNet).toBeCloseTo(-2606345.91006, 2);
+    const investmentNPV = 1000000 + 1000000 / 1.03;
+    const operatingNPV = 220000 / 1.03 + 224400 / 1.03 ** 2 + 228888 / 1.03 ** 3;
+    expect(net.totalNet).toBeCloseTo(-investmentNPV - operatingNPV, 2);
     expect(net.totalNet / 1e6).toBeCloseTo(-2.6, 1);
   });
   it("reports 176000 freed hours and approximately 310.6 Mkr separately", () => {
@@ -101,7 +103,7 @@ describe("Excel formula recalculation", () => {
       });
       sheets[ws.name] = rows;
     }
-    const engine = HyperFormula.buildFromSheets(sheets, { licenseKey: "gpl-v3" });
+    const engine = HyperFormula.buildFromSheets(sheets, { licenseKey: "gpl-v3", precisionRounding: 15 });
     const result = workbook.getWorksheet("5 Resultat");
     const sheetId = engine.getSheetId("5 Resultat");
     if (!result || sheetId === undefined) throw new Error("Missing result sheet");

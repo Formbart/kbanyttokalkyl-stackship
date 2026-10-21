@@ -24,7 +24,7 @@ interface PendingCalculation {
 
 const INTROS: Record<number, string> = {
   1: "Beskriv projektet, jämförelsealternativen och de nyttor förändringen ska ge.",
-  2: "Kartlägg vad nuläget kostar under de sex kommande åren.",
+  2: "Kartlägg vad nuläget kostar under kalkylperioden.",
   3: "Kartlägg vad det förändrade arbetssättet kostar under samma period.",
   4: "Bedöm hur stor förflyttning de kvalitativa nyttorna och miljönyttorna ger.",
   5: "Sammanställning av kostnader, nettonytta, break-even och övriga nyttor.",
