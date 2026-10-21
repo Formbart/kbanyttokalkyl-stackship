@@ -279,12 +279,13 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   const basic = workbook.addWorksheet("1 Grundinformation");
   title(basic, "1 Grundinformation", "Projektuppgifter, alternativ och planerade nyttor", 8);
   section(basic, 4, "Projekt", 8);
-  basic.addRow(["Projektnamn", state.project.name, "Startår", state.project.startYear, "Diskonteringsränta", discountRate(state)]);
+  basic.addRow(["Projektnamn", state.project.name, "Startår", state.project.startYear, "Diskonteringsränta", discountRate(state), "Prisnivå/basår", baseYearOf(state)]);
   basic.addRow(["Alternativ 1", state.project.alt1]);
   basic.addRow(["Alternativ 2", state.project.alt2]);
   basic.addRow(["Intressenter", state.project.stakeholders]);
   ["B5", "D5", "B6", "B7", "B8"].forEach((address) => input(basic.getCell(address)));
   input(basic.getCell("F5"), percentFormat);
+  input(basic.getCell("H5"), numberFormat);
   section(basic, 10, "Nyttor", 8);
   const benefitHeader = basic.addRow(["Förändring", "Effekt", "Nytta", "Intressent", "Typ", "Gynnas", "Mål", "Prioritering"]);
   header(benefitHeader);
@@ -302,8 +303,10 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   });
   finish(basic, [24, 35, 35, 24, 26, 18, 28, 24]);
 
-  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear, calcYears(state), discountRate(state));
-  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear, calcYears(state), discountRate(state), { sheet: state.costToday, exported: today });
+  const { todayCalc, changeCalc } = computeProjectCosts(state);
+  const baseYear = baseYearOf(state);
+  const today = addCostSheet(workbook, "2 Kostnad idag", "Nulägets kostnader under kalkylperioden", state.costToday, state.project.startYear, calcYears(state), discountRate(state), baseYear, undefined, todayCalc.marginSum);
+  const change = addCostSheet(workbook, "3 Kostnad förändring", "Kostnader för det förändrade arbetssättet", state.costChange, state.project.startYear, calcYears(state), discountRate(state), baseYear, { sheet: state.costToday, exported: today }, changeCalc.marginSum);
 
   const qualitative = workbook.addWorksheet("4 Kvalitativa nyttor");
   title(qualitative, "4 Kvalitativa nyttor", "Bedömning av kvalitativa nyttor och miljönyttor", 8);
