@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HyperFormula } from "hyperformula";
 import { buildNyttokalkylWorkbook } from "./exportExcel";
-import { computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, NO_BREAK_EVEN } from "./calc";
+import { computeCostSheet, computeNetBenefit, computeProjectCosts, computeReallocation, staffAnnualCost, NO_BREAK_EVEN } from "./calc";
 import { emptyCostItem, emptyStaffChange, emptyStaffToday, initialState } from "./types";
 
 export function klaraFixture() {
@@ -20,6 +20,18 @@ export function klaraFixture() {
 }
 
 describe("Klara and financial separation", () => {
+  it("calculates the staff row from its own hours even when the budget retains the baseline", () => {
+    const state = initialState();
+    state.costToday.staff = [{ ...emptyStaffToday(), salary: 32000 }];
+    const row = { ...emptyStaffChange(), salary: 32000, hours: 880 };
+    state.costChange.staff = [row];
+    expect(staffAnnualCost(row.salary, row.hours, row.count)).toBeCloseTo(269260.8, 2);
+    expect(computeProjectCosts(state).changeCalc.perYear[0]?.staffCost).toBeCloseTo(538521.6, 2);
+  });
+  it("recalculates the staff row when its monthly salary changes", () => {
+    expect(staffAnnualCost(40000, 880, 1)).toBeCloseTo(336576, 2);
+    expect(staffAnnualCost(32000, 880, 1)).toBeCloseTo(269260.8, 2);
+  });
   it("retains teacher salary and yields approximately -2.6 Mkr financial NPV", () => {
     const state = klaraFixture();
     const { todayCalc, changeCalc } = computeProjectCosts(state);
