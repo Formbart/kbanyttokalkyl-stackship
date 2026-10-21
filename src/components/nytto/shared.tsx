@@ -1,12 +1,17 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Info, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 export function SectionCard({
   title,
@@ -48,11 +53,13 @@ export function KpiCard({
   value,
   hint,
   tone = "neutral",
+  info,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: "neutral" | "positive" | "negative" | "today" | "change";
+  info?: ReactNode;
 }) {
   const toneClass = {
     neutral: "text-foreground",
@@ -65,6 +72,22 @@ export function KpiCard({
     <div className="surface-card print-keep p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
+        {info && (
+          <HoverCard openDelay={100} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <button
+                type="button"
+                aria-label="Hur värdet beräknas"
+                className="no-print ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full align-baseline text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </HoverCardTrigger>
+            <HoverCardContent align="start" className="w-80 text-sm leading-relaxed">
+              {info}
+            </HoverCardContent>
+          </HoverCard>
+        )}
       </p>
       <p className={cn("num mt-2 text-2xl font-semibold", toneClass)}>{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
