@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Kungsbacka-mallen v2: felmarginal bara på skillnader (personal standard 0 %), basår för uppräkning/diskontering, speglade personalrader med todayId, båda nettonyttorna i resultatet, break-even ≥ 0, uppdaterade tester.
 - [x] Uppdatera årstabellen med arbetstidskostnad och separat budgetkostnad för båda nyttotyperna; verifiera ändrad tjänstegrad och lön.
 
 - [x] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.

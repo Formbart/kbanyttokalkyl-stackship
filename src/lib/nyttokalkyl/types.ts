@@ -58,6 +58,8 @@ export interface Position {
 export type PersonalData = Record<string, Position[]>;
 
 export interface StaffToday {
+  /** Stabilt id som speglade rader i förändringen pekar på via todayId. */
+  id: string;
   /** En av FORVALTNINGAR, eller FORVALTNING_OVRIGT. */
   forvaltning: string;
   /** Index i personalData[forvaltning], eller null för Övrigt. */
@@ -70,7 +72,9 @@ export interface StaffToday {
   desc: string;
 }
 
-export interface StaffChange extends Omit<StaffToday, "desc"> {
+export interface StaffChange extends Omit<StaffToday, "desc" | "id"> {
+  /** Pekar på raden i nuläget som speglas, eller null för en helt ny resurs. */
+  todayId: string | null;
   benefitType: StaffBenefitType;
   desc: string;
 }
@@ -83,7 +87,7 @@ export interface CostSheet<TStaff> {
   staffMargin?: number;
 }
 
-export const DEFAULT_STAFF_MARGIN = 5;
+export const DEFAULT_STAFF_MARGIN = 0;
 export function staffMarginOf(sheet: { staffMargin?: number | undefined }): number {
   const m = sheet.staffMargin;
   return typeof m === "number" && Number.isFinite(m) && m >= 0 ? m : DEFAULT_STAFF_MARGIN;
@@ -183,6 +187,8 @@ export interface AppState {
     alt1: string;
     alt2: string;
     startYear: number;
+    /** Prisnivå/basår som belopp anges i och nuvärden avser. Saknas i gamla kalkyler = startYear. */
+    baseYear?: number;
     /** Kalkylperiodens längd i år. */
     calculationYears?: number;
     /** Diskonteringsränta i procent, gemensam för båda scenarierna. */
@@ -276,8 +282,13 @@ export function emptyCostItem(startYear: number): CostItem {
   };
 }
 
+export function newStaffId(): string {
+  return crypto.randomUUID();
+}
+
 export function emptyStaffToday(): StaffToday {
   return {
+    id: newStaffId(),
     forvaltning: FORVALTNING_OVRIGT,
     positionIndex: null,
     role: "Övrig personalresurs",
@@ -288,8 +299,9 @@ export function emptyStaffToday(): StaffToday {
   };
 }
 
-export function emptyStaffChange(): StaffChange {
+export function emptyStaffChange(todayId: string | null = null): StaffChange {
   return {
+    todayId,
     forvaltning: FORVALTNING_OVRIGT,
     positionIndex: null,
     role: "Övrig personalresurs",
@@ -322,6 +334,7 @@ export function initialState(): AppState {
       alt1: "",
       alt2: "",
       startYear: year,
+      baseYear: year,
       calculationYears: 6,
       discountRate: 3,
       benefits: [],
