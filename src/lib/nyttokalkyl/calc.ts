@@ -378,6 +378,31 @@ export function formatNumber(value: number): string {
   );
 }
 
+const moneyUnit = (value: number) => {
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return { divisor: 1e9, unit: "mdkr" };
+  if (abs >= 1e6) return { divisor: 1e6, unit: "Mkr" };
+  if (abs >= 1e4) return { divisor: 1e3, unit: "tkr" };
+  return { divisor: 1, unit: "kr" };
+};
+
+export function formatKrCompact(value: number): string {
+  const safe = Number.isFinite(value) ? value : 0;
+  const { divisor, unit } = moneyUnit(safe);
+  const digits = unit === "mdkr" || (unit === "Mkr" && Math.abs(safe) < 1e7) ? 2 : unit === "Mkr" ? 1 : 0;
+  const number = new Intl.NumberFormat("sv-SE", { minimumFractionDigits: digits, maximumFractionDigits: digits })
+    .format(Math.abs(safe) / divisor);
+  return `${safe < 0 ? "−" : ""}${number} ${unit}`;
+}
+
+/** All ticks share a single unit, chosen from the axis extent. */
+export function createKrAxisFormatter(maximum: number) {
+  const { divisor, unit } = moneyUnit(maximum);
+  return (value: number) => `${value < 0 ? "−" : ""}${new Intl.NumberFormat("sv-SE", {
+    maximumFractionDigits: divisor === 1 ? 0 : 2,
+  }).format(Math.abs(value) / divisor)} ${unit}`;
+}
+
 export function hasAnyData(state: AppState): boolean {
   return (
     state.project.name.trim().length > 0 ||
