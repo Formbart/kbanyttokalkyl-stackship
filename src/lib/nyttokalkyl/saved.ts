@@ -49,6 +49,33 @@ export async function saveCalculation(
   return data.id;
 }
 
+export async function getShareToken(id: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("calculations")
+    .select("share_token")
+    .eq("id", id)
+    .single();
+  if (error) throw new Error(error.message);
+  if (data.share_token) return data.share_token;
+  const token = crypto.randomUUID();
+  const { error: upd } = await supabase.from("calculations").update({ share_token: token }).eq("id", id);
+  if (upd) throw new Error(upd.message);
+  return token;
+}
+
+export async function stopSharing(id: string): Promise<void> {
+  const { error } = await supabase.from("calculations").update({ share_token: null }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function loadSharedCalculation(token: string): Promise<{ title: string; state: AppState } | null> {
+  const { data, error } = await supabase.rpc("get_shared_calculation", { _token: token });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) return null;
+  return parseCalculation(row.title, row.data);
+}
+
 export async function loadCalculation(id: string): Promise<{ title: string; state: AppState }> {
   const { data, error } = await supabase
     .from("calculations")
@@ -56,6 +83,11 @@ export async function loadCalculation(id: string): Promise<{ title: string; stat
     .eq("id", id)
     .single();
   if (error) throw new Error(error.message);
+  return parseCalculation(data.title, data.data);
+}
+
+function parseCalculation(title: string, raw: unknown): { title: string; state: AppState } {
+  const data = { title, data: raw };
   const parsed = (data.data ?? {}) as Partial<AppState>;
   const base = initialState();
   return {

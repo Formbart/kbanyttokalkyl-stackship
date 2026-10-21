@@ -17,6 +17,7 @@ import { Route as AuthenticatedAdministrationRouteImport } from './routes/_authe
 import { Route as AuthenticatedKalkylRouteImport } from './routes/_authenticated/kalkyl'
 import { Route as AuthenticatedKalkylerRouteImport } from './routes/_authenticated/kalkyler'
 import { Route as AuthenticatedKontoRouteImport } from './routes/_authenticated/konto'
+import { Route as DeladTokenRouteImport } from './routes/delad.$token'
 import { Route as ApiPublicBootstrapAdminRouteImport } from './routes/api/public/bootstrap-admin'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const AuthenticatedKontoRoute = AuthenticatedKontoRouteImport.update({
   path: '/konto',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DeladTokenRoute = DeladTokenRouteImport.update({
+  id: '/delad/$token',
+  path: '/delad/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicBootstrapAdminRoute = ApiPublicBootstrapAdminRouteImport.update({
   id: '/api/public/bootstrap-admin',
   path: '/api/public/bootstrap-admin',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/kalkyl': typeof AuthenticatedKalkylRoute
   '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
+  '/delad/$token': typeof DeladTokenRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRoutesByTo {
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/kalkyl': typeof AuthenticatedKalkylRoute
   '/kalkyler': typeof AuthenticatedKalkylerRoute
   '/konto': typeof AuthenticatedKontoRoute
+  '/delad/$token': typeof DeladTokenRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRoutesById {
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/kalkyl': typeof AuthenticatedKalkylRoute
   '/_authenticated/kalkyler': typeof AuthenticatedKalkylerRoute
   '/_authenticated/konto': typeof AuthenticatedKontoRoute
+  '/delad/$token': typeof DeladTokenRoute
   '/api/public/bootstrap-admin': typeof ApiPublicBootstrapAdminRoute
 }
 export interface FileRouteTypes {
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/kalkyl'
     | '/kalkyler'
     | '/konto'
+    | '/delad/$token'
     | '/api/public/bootstrap-admin'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/kalkyl'
     | '/kalkyler'
     | '/konto'
+    | '/delad/$token'
     | '/api/public/bootstrap-admin'
   id:
     | '__root__'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kalkyl'
     | '/_authenticated/kalkyler'
     | '/_authenticated/konto'
+    | '/delad/$token'
     | '/api/public/bootstrap-admin'
   fileRoutesById: FileRoutesById
 }
@@ -135,6 +147,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DeladTokenRoute: typeof DeladTokenRoute
   ApiPublicBootstrapAdminRoute: typeof ApiPublicBootstrapAdminRoute
 }
 
@@ -196,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKontoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/delad/$token': {
+      id: '/delad/$token'
+      path: '/delad/$token'
+      fullPath: '/delad/$token'
+      preLoaderRoute: typeof DeladTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/bootstrap-admin': {
       id: '/api/public/bootstrap-admin'
       path: '/api/public/bootstrap-admin'
@@ -229,6 +249,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DeladTokenRoute: DeladTokenRoute,
   ApiPublicBootstrapAdminRoute: ApiPublicBootstrapAdminRoute,
 }
 export const routeTree = rootRouteImport
