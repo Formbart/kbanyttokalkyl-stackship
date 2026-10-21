@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { computeFreedTime, formatKr, formatKrCompact, formatNumber } from "@/lib/nyttokalkyl/calc";
-import { KpiCard, SectionCard } from "./shared";
+import { SectionCard } from "./shared";
 
 export function FreedTimeSection({ freedTime, onOpenChange }: {
   freedTime: ReturnType<typeof computeFreedTime>;
@@ -18,12 +18,14 @@ export function FreedTimeSection({ freedTime, onOpenChange }: {
     <SectionCard title="Omfördelningsnytta" description="Frigjord tid som används till annat – inte en besparing i budget" className="print-full">
       <div data-testid="freed-time-section" className="space-y-4">
         <div className="grid min-w-0 gap-4 md:grid-cols-3">
-          {groups.map((group) => <div key={group.label} className="min-w-0">
-            <KpiCard label={group.label} value={`${formatNumber(group.hours)} h/år`} tone="positive" hint={group.hint} />
+          {groups.map((group) => <div key={group.label} className="min-w-0 rounded-lg border border-border bg-card p-4">
+            <h4 className="break-words text-xs font-medium uppercase text-muted-foreground">{group.label}</h4>
+            <p className="num mt-2 break-words text-xl font-semibold text-positive-strong">{formatNumber(group.hours)} h/år</p>
             <dl className="mt-3 space-y-2 text-sm">
               <div><dt className="text-muted-foreground">Värde/år i basårets priser</dt><dd className="num" title={formatKr(group.value)}>{formatKrCompact(group.value)} <span className="block text-xs text-muted-foreground">{formatKr(group.value)}</span></dd></div>
               <div><dt className="text-muted-foreground">Nuvärde över perioden</dt><dd className="num font-semibold" title={formatKr(group.npv)}>{formatKrCompact(group.npv)} <span className="block text-xs font-normal text-muted-foreground">{formatKr(group.npv)}</span></dd></div>
             </dl>
+            <p className="mt-3 break-words text-xs text-muted-foreground">{group.hint}</p>
           </div>)}
         </div>
         {freedTime.totalFreedHours === 0 && <p className="text-sm text-muted-foreground">Förändringen frigör ingen personaltid.</p>}
