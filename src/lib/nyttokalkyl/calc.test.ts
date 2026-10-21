@@ -355,14 +355,15 @@ describe("all freed time without double counting", () => {
     const workbook = buildNyttokalkylWorkbook(state);
     const sheets: Record<string, (string | number | boolean | null)[][]> = {};
     for (const ws of workbook.worksheets) {
-      sheets[ws.name] = [];
+      const sheetRows: (string | number | boolean | null)[][] = [];
+      sheets[ws.name] = sheetRows;
       ws.eachRow({ includeEmpty: true }, (row) => {
         const values: (string | number | boolean | null)[] = [];
         for (let c = 1; c <= Math.max(10, ws.columnCount); c++) {
           const v = row.getCell(c).value;
           values.push(v && typeof v === "object" && "formula" in v ? `=${v.formula}` : typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? v : null);
         }
-        sheets[ws.name].push(values);
+        sheetRows.push(values);
       });
     }
     const engine = HyperFormula.buildFromSheets(sheets, { licenseKey: "gpl-v3", precisionRounding: 15 });
