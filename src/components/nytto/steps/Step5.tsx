@@ -251,7 +251,7 @@ export function Step5() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={netScenarios} margin={{ left: 0, right: 16, top: 32, bottom: 24 }}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="scenario" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+              <XAxis dataKey="scenario" tickLine={false} axisLine={false} height={48} tickMargin={20} tick={{ fontSize: 12 }} />
               <YAxis domain={[(min: number) => Math.min(0, min), (max: number) => Math.max(0, max)]} tickFormatter={scenarioTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v: number) => formatKr(v)} contentStyle={{ borderRadius: 8, borderColor: "var(--color-border)", background: "var(--color-card)" }} />
               <ReferenceLine y={0} stroke="var(--color-foreground)" strokeWidth={1.5} />
