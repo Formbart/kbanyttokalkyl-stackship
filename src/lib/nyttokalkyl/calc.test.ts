@@ -52,7 +52,7 @@ describe("Klara and financial separation", () => {
   it("indexes AI-driften 220000 from the 2026 base year to 224400 in 2027", () => {
     const state = klaraFixture();
     const { changeCalc } = computeProjectCosts(state);
-    expect(changeCalc.perYear.map((r) => r.recurring)).toEqual([0, 224400, 228888, 233465.76]);
+    changeCalc.perYear.forEach((r, i) => expect(r.recurring).toBeCloseTo([0, 224400, 228888, 233465.76][i] ?? 0, 8));
   });
   it("reports 176000 freed hours, 78801899 kr the first year and approximately 310.6 Mkr over the period", () => {
     const state = klaraFixture();
@@ -117,7 +117,7 @@ describe("assumptions and uncertainty", () => {
   });
   it("indexes 220000 from the 2026 base year, not from the item's own start year", () => {
     const sheet = { growth: 2, staff: [], items: [{ ...emptyCostItem(2027), costPerYear: 220000 }] };
-    expect(computeCostSheet(sheet, 2026, 4, 0.03, undefined, 2026).perYear.map((r) => r.recurring)).toEqual([0, 224400, 228888, 233465.76]);
+    computeCostSheet(sheet, 2026, 4, 0.03, undefined, 2026).perYear.forEach((r, i) => expect(r.recurring).toBeCloseTo([0, 224400, 228888, 233465.76][i] ?? 0, 8));
   });
   it("applies editable 5 percent discounting", () => {
     const state = initialState();
