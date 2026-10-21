@@ -191,7 +191,6 @@ export function Step5() {
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="scenario" tickLine={false} axisLine={false} />
               <YAxis
-                domain={[0, "dataMax"]}
                 tickFormatter={(v: number) => `${Math.round(v / 1000)} tkr`}
                 tickLine={false}
                 axisLine={false}
@@ -205,13 +204,15 @@ export function Step5() {
               <Bar
                 dataKey="idag"
                 name="Kostnad idag"
-                fill="var(--color-today)"
+                fill="var(--today)"
+                isAnimationActive={false}
                 radius={[6, 6, 0, 0]}
               />
               <Bar
                 dataKey="forandring"
                 name={changeLabel}
-                fill="var(--color-change)"
+                fill="var(--change)"
+                isAnimationActive={false}
                 radius={[6, 6, 0, 0]}
               />
 
@@ -326,6 +327,7 @@ export function Step5() {
                 dataKey="ackumulerat"
                 name="Ackumulerad finansiell nettonytta"
                 stroke="var(--brand)"
+                isAnimationActive={false}
                 strokeWidth={2.5}
                 dot={{ r: 3 }}
                 type="monotone"
