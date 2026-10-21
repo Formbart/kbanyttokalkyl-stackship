@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Rätta dubbelräkning, diskontering, indexering och resultatintervall; testa Klara.
+- [ ] Rätta Excel-formler och kontrollera samma resultat som appen.
+- [ ] Anpassa AI-anrop och säkra mejlflödet; invänta ny n8n-adress och mejlnyckel.
+
 - [x] Visa användarens namn längst till höger i toppmenyn.
 - [x] Flytta Mina kalkyler till en egen sida för att öppna sparade kalkyler.
 - [x] Ta bort skapande från Mina kalkyler-sidan.
