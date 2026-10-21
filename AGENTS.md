@@ -15,3 +15,4 @@
 - Outbound credential emails stay in authenticated TanStack server functions and require the mail API key; this stack uses Worker server functions rather than Supabase Edge Functions.
 - Run unit tests with the isolated Vitest configuration so server handlers can be tested without the framework RPC transform.
 - Keep result-only cost filtering and warning/move helpers in a browser-safe presentation module; derive amounts with existing calculation functions without modifying scenario math.
+- Use computeFreedTime for the informational staff-time breakdown across results, Excel and AI; keep signed computeReallocation as the sole added benefit in net totals to avoid counting financial removals twice.
