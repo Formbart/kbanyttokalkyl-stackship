@@ -44,10 +44,11 @@ import { exportNyttokalkylToExcel } from "@/lib/nyttokalkyl/exportExcel";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { saveCalculation } from "@/lib/nyttokalkyl/saved";
+import { GLOSSARY } from "@/lib/nyttokalkyl/glossary";
 import kungsbackaVapen from "@/assets/kungsbacka-kommunvapen.png.asset.json";
 
 
-const GLOSSARY: { term: string; def: string }[] = [
+const BENEFIT_GLOSSARY: { term: string; def: string }[] = [
   {
     term: "Finansiell nytta 💰",
     def: "Nytta som ger en faktisk minskad kostnad eller ökad intäkt i budget — pengar som frigörs och kan användas till annat.",
@@ -436,7 +437,8 @@ export function AppHeader({
                   <DialogDescription>Begrepp som används i nyttokalkylen.</DialogDescription>
                 </DialogHeader>
                 <dl className="space-y-4">
-                  {GLOSSARY.map((g) => (
+                  {Object.entries(GLOSSARY).map(([term, entry]) => <div key={term}><dt className="text-sm font-semibold text-foreground">{term}</dt><dd className="text-sm text-muted-foreground">{entry.description}{"example" in entry && <p className="mt-1 italic">{entry.example}</p>}</dd></div>)}
+                  {BENEFIT_GLOSSARY.map((g) => (
                     <div key={g.term}>
                       <dt className="text-sm font-semibold text-foreground">{g.term}</dt>
                       <dd className="text-sm text-muted-foreground">{g.def}</dd>

@@ -29,6 +29,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "./types";
+import { GLOSSARY, glossaryText, type GlossaryTerm } from "./glossary";
 import { staffMarginOf } from "./types";
 
 const COLORS = {
@@ -445,6 +446,15 @@ export function buildNyttokalkylWorkbook(state: AppState) {
   section(result, result.rowCount + 2, "Kvalitativa nyttor", 8);
   header(result.addRow(["Nytta", "Typ", "Gynnas", "Förflyttning", "Bedömning"]));
   qualRows.forEach((item) => result.addRow([benefitSentence(item.benefit), item.benefit.type, item.benefit.gynnas, item.movement, item.label]));
+  result.eachRow((row) => row.eachCell((cell) => {
+    if (typeof cell.value !== "string") return;
+    const label = cell.value;
+    const term: GlossaryTerm | undefined = label === "Nettonytta inklusive omfördelning" ? "Nettonytta inkl. omfördelning"
+      : label === "Finansiell nettonytta – lågt" || label === "Finansiell nettonytta – högt" ? "Intervall (Sämsta/Bästa)"
+      : (Object.keys(GLOSSARY) as GlossaryTerm[]).find((key) => label === key || label.startsWith(`${key} (`))
+        ?? (label.toLowerCase().includes("nuvärde") ? "Nuvärde" : undefined);
+    if (term) cell.note = glossaryText(term);
+  }));
   finish(result, [48, 26, 26, 30, 28, 16, 16, 16]);
 
   const followUp = workbook.addWorksheet("6 Uppföljning");
