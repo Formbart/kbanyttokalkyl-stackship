@@ -229,7 +229,10 @@ export function Step5() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={comparison.rows} margin={{ left: 0, right: 8, top: 16, bottom: 8 }}>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="category" tickLine={false} axisLine={false} interval={0} height={62} tick={{ fontSize: 11 }} tickFormatter={(label: string) => label.startsWith("Personal") ? "Personal" : label} />
+                <XAxis dataKey="category" tickLine={false} axisLine={false} interval={0} height={62} tick={({ x, y, payload }) => {
+                  const lines = String(payload.value).startsWith("Personal") ? ["Personal"] : String(payload.value).replace("Engångskostnader", "Engångs kostnader").split(" ");
+                  return <text x={x} y={y} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize={11}>{lines.map((line, i) => <tspan key={i} x={x} dy={i === 0 ? 14 : 13}>{line}</tspan>)}</text>;
+                }} />
                 <YAxis tickFormatter={costTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => formatKr(v)} contentStyle={{ borderRadius: 8, borderColor: "var(--color-border)", background: "var(--color-card)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -249,7 +252,7 @@ export function Step5() {
             <BarChart data={netScenarios} margin={{ left: 0, right: 16, top: 32, bottom: 24 }}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="scenario" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={scenarioTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
+              <YAxis domain={[(min: number) => Math.min(0, min), (max: number) => Math.max(0, max)]} tickFormatter={scenarioTicks} tickLine={false} axisLine={false} width={88} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v: number) => formatKr(v)} contentStyle={{ borderRadius: 8, borderColor: "var(--color-border)", background: "var(--color-card)" }} />
               <ReferenceLine y={0} stroke="var(--color-foreground)" strokeWidth={1.5} />
               <Bar dataKey="value" name="Finansiell nettonytta" isAnimationActive={false} maxBarSize={80}>
