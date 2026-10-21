@@ -46,7 +46,7 @@ import {
   type StaffChange,
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
-import { calcYears, computeCostSheet, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { calcYears, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
 function CostLabel() {
@@ -91,7 +91,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const sheet = state[key];
   const startYear = state.project.startYear;
   const nYears = calcYears(state);
-  const calc = computeCostSheet(sheet, startYear, nYears);
+  const costs = computeProjectCosts(state);
+  const calc = scenario === "today" ? costs.todayCalc : costs.changeCalc;
+  const staffMatches = matchStaffRows(state.costToday.staff, state.costChange.staff);
   const outside = itemsOutsidePeriod(sheet, startYear, nYears);
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<{
@@ -152,6 +154,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
       assumptions?: string;
     }>("suggest_costs", {
       scenario,
+      discountRate: discountRate(state) * 100,
+      roles: [...ROLE_NAMES, ...Object.values(personalData).flat().map((p) => p.befattning)],
       projectName: state.project.name,
       alt1: state.project.alt1,
       alt2: state.project.alt2,
@@ -188,8 +192,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             ...emptyStaffToday(),
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
-            hours: Number(r.hours) || FULL_TIME_HOURS,
-            count: Number(r.count) || 1,
+            hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+            count: r.count == null ? 1 : Number(r.count) || 0,
             desc: r.desc ?? "",
           })),
         ]);
@@ -200,8 +204,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             ...emptyStaffChange(),
             role: r.role ?? "Övrig personalresurs",
             salary: Number(r.salary) || 0,
-            hours: Number(r.hours) || FULL_TIME_HOURS,
-            count: Number(r.count) || 1,
+            hours: r.hours == null ? FULL_TIME_HOURS : Number(r.hours) || 0,
+            count: r.count == null ? 1 : Number(r.count) || 0,
             benefitType: (r.benefitType ??
               "Omfördelningsnytta ↺") as StaffBenefitType,
             desc: r.desc ?? "",
@@ -217,13 +221,16 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     <div className="space-y-6">
       <SectionCard
         title="Kostnadsposter"
-        description="Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad."
+        description={scenario === "today" ? "Här anges bara kostnader som finns i nuläget och som finns kvar om förändringen inte genomförs. Investeringar och kostnader för det nya arbetssättet läggs i Kostnad förändring." : "Licenser, inköp, konsulter, utbildning och annat som inte är personalkostnad."}
         action={
           <AiButton onClick={() => void suggestCosts()} loading={loading}>
             Föreslå kostnader med AI
           </AiButton>
         }
       >
+        {scenario === "today" && sheet.items.some((it) => it.type === "Engångskostnad" && it.startYear !== null && it.startYear >= startYear) && (
+          <WarningBanner>Kontrollera engångskostnaden: investeringar för det nya arbetssättet hör till Kostnad förändring.</WarningBanner>
+        )}
         {suggestion && (
           <div className="mb-5 space-y-3 rounded-xl border border-brand/30 bg-brand-soft p-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -391,13 +398,17 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
         description={
           scenario === "today"
             ? "Ange de roller och den arbetstid som går åt idag. Månadslön exkl. PO fylls i automatiskt för kända befattningar."
-            : "Rader taggade Omfördelningsnytta ↺ jämförs radvis (samma radnummer) med personaltabellen i steg 2."
+            : "Omfördelningsnytta ↺ behåller motsvarande lönekostnad i nuläget. Lägre arbetstid räknas enbart som frigjord tid, inte budgetbesparing."
         }
       >
         <div className="space-y-4">
           {staff.map((row, i) => {
             const count = row.count ?? 1;
-            const annual = staffAnnualCost(row.salary, row.hours, count);
+            const match = staffMatches[i];
+            const baseline = match == null ? undefined : staffToday[match];
+            const retained = scenario === "change" && (row as StaffChange).benefitType === "Omfördelningsnytta ↺" && baseline;
+            const costPerson = retained ? baseline : row;
+            const annual = staffAnnualCost(costPerson.salary, costPerson.hours, costPerson.count ?? 1);
             const employmentRate = row.hours / FULL_TIME_HOURS;
             const monthlySalaryAtRate = row.salary * employmentRate;
             const forvaltning = row.forvaltning ?? FORVALTNING_OVRIGT;
@@ -672,8 +683,8 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
           Lägg till personalrad
         </Button>
 
-        <div className="mt-6 max-w-56">
-          <Field label="Årlig kostnadsökning (%)" hint="Räknas från kalkylperiodens första år.">
+        <div className="mt-6 grid max-w-xl gap-4 sm:grid-cols-2">
+          <Field label="Årlig kostnadsökning (%)" hint="Drift räknas upp från postens startår; personal från kalkylperiodens första år.">
             <Input
               type="number"
               className="num"
@@ -682,12 +693,16 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
               onChange={(e) => setGrowth(Number(e.target.value) || 0)}
             />
           </Field>
+          <Field label="Diskonteringsränta (%)" hint="Gemensamt antagande för hela kalkylen.">
+            <Input type="number" min={0} step="0.1" className="num" value={state.project.discountRate ?? 3}
+              onChange={(e) => setState((s) => ({ ...s, project: { ...s.project, discountRate: Math.max(0, Number(e.target.value) || 0) } }))} />
+          </Field>
         </div>
       </SectionCard>
 
       <SectionCard
         title={`Beräknad kostnad ${startYear}–${startYear + nYears - 1}`}
-        description="Nuvärde beräknas med 3 % diskonteringsränta från kalkylperiodens första år."
+        description={`Nuvärde beräknas med ${discountRate(state) * 100} % diskonteringsränta från kalkylperiodens första år.`}
       >
         {scenario === "today" ? (
           <div className="no-print mb-4 flex flex-wrap items-center gap-3">

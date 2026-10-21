@@ -15,7 +15,7 @@ import {
   Cell,
   ComposedChart,
 } from "recharts";
-import { Switch } from "@/components/ui/switch";
+
 import { toast } from "sonner";
 import { useNyttokalkyl } from "@/lib/nyttokalkyl/store";
 import {
@@ -28,7 +28,9 @@ import {
 import { callAgent } from "@/lib/nyttokalkyl/agent";
 import {
   calcYears,
-  computeCostSheet,
+  computeProjectCosts,
+  discountRate,
+  NO_BREAK_EVEN,
   computeNetBenefit,
   computeQualitative,
   computeReallocation,
@@ -58,56 +60,27 @@ export function Step5() {
     report?: string | undefined;
   }>({});
 
-  const todayCalc = computeCostSheet(state.costToday, state.project.startYear, calcYears(state));
-  const changeCalc = computeCostSheet(state.costChange, state.project.startYear, calcYears(state));
+  const { todayCalc, changeCalc } = computeProjectCosts(state);
   const realloc = computeReallocation(state.costToday.staff, state.costChange.staff);
-  const net = computeNetBenefit(
-    state,
-    todayCalc,
-    changeCalc,
-    state.reallocationInGraph,
-  );
+  const net = computeNetBenefit(state, todayCalc, changeCalc);
   const qual = computeQualitative(state);
-
   const empty = !hasAnyData(state);
-
-  // Förklara varför reglaget inte gör någon skillnad.
-  const changeStaff = state.costChange.staff;
-  const taggedRows = changeStaff.filter(
-    (r) => r.benefitType === "Omfördelningsnytta ↺",
-  );
-  const reallocBlockReason =
-    state.costToday.staff.length === 0 || changeStaff.length === 0
-      ? "Lägg till personalrader i steg 2 (idag) och steg 3 (vid förändring) för att kunna räkna på frigjord tid."
-      : taggedRows.length === 0
-        ? "Ingen personalrad i steg 3 är taggad ”Omfördelningsnytta ↺”. Ändra ”Typ av nytta” på raden för att räkna med frigjord tid."
-        : "Timmar och lön är lika i steg 2 och 3 — sätt färre timmar (eller lägre lön) på raden i steg 3 för att få frigjord tid.";
-
-
-  // När omfördelningsnyttan ingår räknas frigjord tid som minskad kostnad vid
-  // förändring — visa samma justering i scenariografen.
-  const reallocAdjustment = state.reallocationInGraph
-    ? changeCalc.npvSum - (todayCalc.npvSum - net.totalNet)
-    : 0;
-  const changeLabel = state.reallocationInGraph
-    ? "Kostnad vid förändring (inkl. omfördelning)"
-    : "Kostnad vid förändring";
-
+  const changeLabel = "Kostnad vid förändring";
   const scenarioData = [
     {
       scenario: "Sämsta",
       idag: Math.round(todayCalc.worst),
-      forandring: Math.round(changeCalc.worst - reallocAdjustment),
+      forandring: Math.round(changeCalc.worst),
     },
     {
       scenario: "Sannolikt",
       idag: Math.round(todayCalc.npvSum),
-      forandring: Math.round(changeCalc.npvSum - reallocAdjustment),
+      forandring: Math.round(changeCalc.npvSum),
     },
     {
       scenario: "Bästa",
       idag: Math.round(todayCalc.best),
-      forandring: Math.round(changeCalc.best - reallocAdjustment),
+      forandring: Math.round(changeCalc.best),
     },
   ];
 
@@ -122,9 +95,10 @@ export function Step5() {
   const reallocPeriod = computeReallocationOverPeriod(
     realloc.hoursFreed,
     realloc.valueFreed,
-    state.costChange.growth,
+    state.costToday.growth,
     state.project.startYear,
     calcYears(state),
+    discountRate(state),
   );
 
   const internal = qual.filter((q) => q.benefit.gynnas === "Intern nytta").length;
@@ -142,14 +116,15 @@ export function Step5() {
   const runReview = async () => {
     setLoading(true);
     const res = await callAgent<Review>("review_calculation", {
+      discountRate: discountRate(state) * 100,
       fullState: state,
       computedSummary: {
-        todayNPV: todayCalc.npvSum,
-        changeNPV: changeCalc.npvSum,
-        netBenefit: net.totalNet,
+        totalCostToday: todayCalc.npvSum,
+        totalCostChange: changeCalc.npvSum,
+        financialNetBenefit: net.totalNet,
         breakEvenYear: net.breakEvenYear,
-        reallocationHours: realloc.hoursFreed,
-        reallocationValue: realloc.valueFreed,
+        freedHoursPerYear: realloc.hoursFreed,
+        reallocationBenefit: reallocPeriod.totalValueFreedNPV,
       },
     });
     setLoading(false);
@@ -179,28 +154,24 @@ export function Step5() {
           label="Kostnad idag (nuvärde)"
           value={formatKr(todayCalc.npvSum)}
           tone="today"
-          hint="6 år, diskonterat"
+          hint={`${calcYears(state)} år, diskonterat`}
         />
         <KpiCard
           label="Kostnad vid förändring"
           value={formatKr(changeCalc.npvSum)}
           tone="change"
-          hint="6 år, diskonterat"
+          hint={`${calcYears(state)} år, diskonterat`}
         />
         <KpiCard
           label="Finansiell nettonytta"
           value={formatKr(net.totalNet)}
           tone={net.totalNet >= 0 ? "positive" : "negative"}
-          hint={
-            state.reallocationInGraph
-              ? "Inkl. omfördelningsnytta"
-              : "Exkl. omfördelningsnytta"
-          }
+          hint={`Intervall: ${formatKr(net.low)} – ${formatKr(net.high)}`}
         />
         <KpiCard
           label="Break-even år"
           value={String(net.breakEvenYear)}
-          tone={net.breakEvenYear === "Aldrig" ? "negative" : "positive"}
+          tone={net.breakEvenYear === NO_BREAK_EVEN ? "negative" : "positive"}
         />
       </div>
 
@@ -278,35 +249,6 @@ export function Step5() {
           </table>
         </div>
 
-        <label className="no-print mt-5 flex items-center gap-3 rounded-xl bg-brand-soft px-4 py-3">
-          <Switch
-            checked={state.reallocationInGraph}
-            onCheckedChange={(v) =>
-              setState((s) => ({ ...s, reallocationInGraph: v }))
-            }
-            disabled={realloc.valueFreed === 0}
-          />
-          <span className="text-sm">
-            Inkludera omfördelningsnytta i grafen
-            <span className="block text-xs text-muted-foreground">
-              Räknar frigjord tid som minskad kostnad vid förändring.
-              {realloc.valueFreed !== 0 && (
-                <>
-                  {" "}
-                  Just nu {formatKr(realloc.valueFreed)}/år (
-                  {formatNumber(realloc.hoursFreed)} h).
-                </>
-              )}
-            </span>
-            {realloc.valueFreed === 0 && (
-              <span className="mt-1 block text-xs text-negative">
-                {reallocBlockReason}
-              </span>
-            )}
-          </span>
-        </label>
-
-
       </SectionCard>
 
       <SectionCard
@@ -346,7 +288,7 @@ export function Step5() {
               />
               <Legend />
               <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
-              {net.breakEvenYear !== "Aldrig" && (
+              {net.breakEvenYear !== NO_BREAK_EVEN && (
                 <ReferenceLine
                   x={String(net.breakEvenYear)}
                   stroke="var(--color-positive-strong)"
@@ -389,9 +331,15 @@ export function Step5() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        {net.breakEvenYear === "Aldrig" && net.perYear.length > 0 && (
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead><tr className="text-left text-muted-foreground"><th>År</th><th>Finansiell nettonytta</th><th>Omfördelningsnytta</th><th>Ackumulerad finansiell nettonytta</th></tr></thead>
+            <tbody className="num">{net.perYear.map((r) => <tr key={r.year} className="border-t border-border"><td className="py-2">{r.year}</td><td>{formatKr(r.net)}</td><td>{formatKr(r.reallocation)}</td><td>{formatKr(r.cumulative)}</td></tr>)}</tbody>
+          </table>
+        </div>
+        {net.breakEvenYear === NO_BREAK_EVEN && net.perYear.length > 0 && (
           <p className="mt-2 text-sm font-medium text-negative">
-            Break-even nås aldrig inom den valda perioden.
+            Uppnås ej inom kalkylperioden
           </p>
         )}
       </SectionCard>
@@ -399,7 +347,7 @@ export function Step5() {
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard
           title="Omfördelningsnytta"
-          description="Frigjord tid som används till annat värdeskapande arbete."
+          description="Frigjord tid som används till annat – inte en besparing i budget"
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <KpiCard
@@ -418,7 +366,7 @@ export function Step5() {
               tone={reallocPeriod.totalHoursFreed >= 0 ? "positive" : "negative"}
             />
             <KpiCard
-              label="Totalt nuvärde under perioden"
+              label="Omfördelningsnytta (nuvärde)"
               value={formatKr(reallocPeriod.totalValueFreedNPV)}
               tone={reallocPeriod.totalValueFreedNPV >= 0 ? "positive" : "negative"}
             />
@@ -498,9 +446,12 @@ export function Step5() {
                     : "låg"}
               </span>
             </div>
+            {review.risks?.filter((x) => x.startsWith("KALKYLFEL:")).map((x, i) => (
+              <p key={i} role="alert" className="border border-destructive bg-destructive/10 p-3 font-semibold text-negative">⚠ {x.replace(/^KALKYLFEL:\s*/, "")}</p>
+            ))}
             {review.summary && <p>{review.summary}</p>}
             {[
-              { title: "Risker", list: review.risks },
+              { title: "Risker", list: review.risks?.filter((x) => !x.startsWith("KALKYLFEL:")) },
               { title: "Saknade uppgifter", list: review.missing },
               { title: "Rekommendationer", list: review.recommendations },
             ]
@@ -509,7 +460,7 @@ export function Step5() {
                 <div key={s.title}>
                   <p className="font-semibold">{s.title}</p>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
-                    {s.list!.map((x, i) => (
+                    {(s.list ?? []).map((x, i) => (
                       <li key={i}>{x}</li>
                     ))}
                   </ul>
