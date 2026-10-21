@@ -6,6 +6,8 @@ import {
   MIN_CALCULATION_YEARS,
   PO_FACTOR,
   QUALITATIVE_TYPES,
+  emptyStaffChange,
+  newStaffId,
   staffMarginOf,
   type AppState,
   type Benefit,
@@ -70,13 +72,28 @@ export function discountRate(state: AppState): number {
   return typeof rate === "number" && Number.isFinite(rate) && rate >= 0 ? rate / 100 : DISCOUNT_RATE;
 }
 
+/** Prisnivå/basår. Gamla sparade kalkyler utan fält använder startåret, så deras resultat inte ändras. */
+export function baseYearOf(state: AppState): number {
+  const b = state.project.baseYear;
+  return typeof b === "number" && Number.isFinite(b) && b > 0 ? b : state.project.startYear;
+}
+
 const normalizeRole = (role: string) => (role || "").trim().toLowerCase();
 
-/** Match every change row once, by department/role first, then row position. */
+/** Match every change row once: stable todayId first, then department/role, then row position. */
 export function matchStaffRows(today: StaffToday[], change: (StaffToday | StaffChange)[]): (number | null)[] {
+  const byId = new Map(today.map((t, i) => [t.id, i] as const));
   const used = new Set<number>();
-  const matches: (number | null)[] = change.map(() => null);
+  const matches: (number | null)[] = change.map((c) => {
+    const todayId = "todayId" in c ? c.todayId : null;
+    if (todayId != null) {
+      const idx = byId.get(todayId);
+      if (idx !== undefined && !used.has(idx)) { used.add(idx); return idx; }
+    }
+    return null;
+  });
   change.forEach((c, i) => {
+    if (matches[i] !== null) return;
     const idx = today.findIndex((t, j) => !used.has(j) && normalizeRole(t.role) !== "" &&
       normalizeRole(t.role) === normalizeRole(c.role) &&
       (!t.forvaltning || !c.forvaltning || t.forvaltning === c.forvaltning));
