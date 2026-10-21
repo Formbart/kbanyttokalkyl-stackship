@@ -47,7 +47,7 @@ import {
   type StaffToday,
 } from "@/lib/nyttokalkyl/types";
 import { DEFAULT_STAFF_MARGIN } from "@/lib/nyttokalkyl/types";
-import { calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
+import { baseYearOf, calcYears, computeCostSheet, computeProjectCosts, discountRate, matchStaffRows, formatKr, itemsOutsidePeriod, staffAnnualCost, years } from "@/lib/nyttokalkyl/calc";
 import { CalcYearsInput } from "./CalcYearsInput";
 
 function CostLabel() {
@@ -92,11 +92,12 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const key = scenario === "today" ? "costToday" : "costChange";
   const sheet = state[key];
   const startYear = state.project.startYear;
+  const baseYear = baseYearOf(state);
   const nYears = calcYears(state);
   const costs = computeProjectCosts(state);
   const calc = scenario === "today" ? costs.todayCalc : costs.changeCalc;
   // Work allocation follows editable rows; financial totals retain reallocated salaries.
-  const workCalc = computeCostSheet(sheet, startYear, nYears, discountRate(state));
+  const workCalc = computeCostSheet(sheet, startYear, nYears, discountRate(state), undefined, baseYear);
   const hasReallocation = scenario === "change" && sheet.staff.some((row) =>
     "benefitType" in row && row.benefitType === "Omfördelningsnytta ↺",
   );
@@ -131,11 +132,33 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
   const setStaffChange = (rows: StaffChange[]) =>
     setState((s) => ({ ...s, costChange: { ...s.costChange, staff: rows } }));
 
+  /** Fält som alltid speglas från nulägesraden till motsvarande förändringsrad. */
+  const mirroredPatch = (patch: Record<string, unknown>) => {
+    const mirrored: Record<string, unknown> = {};
+    for (const k of ["forvaltning", "positionIndex", "role", "salary"] as const)
+      if (k in patch) mirrored[k] = patch[k];
+    return mirrored;
+  };
+
   const updateStaff = (i: number, patch: Record<string, unknown>) => {
     if (scenario === "today") {
-      setStaffToday(
-        staffToday.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
-      );
+      const row = staffToday[i];
+      const mirror = mirroredPatch(patch);
+      setState((s) => ({
+        ...s,
+        costToday: {
+          ...s.costToday,
+          staff: s.costToday.staff.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+        },
+        costChange: row && Object.keys(mirror).length > 0
+          ? {
+              ...s.costChange,
+              staff: s.costChange.staff.map((c) =>
+                c.todayId === row.id ? { ...c, ...mirror } : c,
+              ),
+            }
+          : s.costChange,
+      }));
     } else {
       setStaffChange(
         staffChange.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
@@ -143,15 +166,54 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
     }
   };
 
-  const addStaff = () =>
-    scenario === "today"
-      ? setStaffToday([...staffToday, emptyStaffToday()])
-      : setStaffChange([...staffChange, emptyStaffChange()]);
+  const addStaff = () => {
+    if (scenario === "today") {
+      const row = emptyStaffToday();
+      const mirror: StaffChange = {
+        ...emptyStaffChange(row.id),
+        forvaltning: row.forvaltning,
+        positionIndex: row.positionIndex,
+        role: row.role,
+        salary: row.salary,
+        hours: row.hours,
+        count: row.count,
+      };
+      setState((s) => ({
+        ...s,
+        costToday: { ...s.costToday, staff: [...s.costToday.staff, row] },
+        costChange: { ...s.costChange, staff: [...s.costChange.staff, mirror] },
+      }));
+    } else {
+      setStaffChange([...staffChange, emptyStaffChange()]);
+    }
+  };
 
-  const removeStaff = (i: number) =>
-    scenario === "today"
-      ? setStaffToday(staffToday.filter((_, idx) => idx !== i))
-      : setStaffChange(staffChange.filter((_, idx) => idx !== i));
+  const removeStaff = (i: number) => {
+    if (scenario === "today") {
+      const row = staffToday[i];
+      setState((s) => ({
+        ...s,
+        costToday: { ...s.costToday, staff: s.costToday.staff.filter((_, idx) => idx !== i) },
+        costChange: {
+          ...s.costChange,
+          staff: s.costChange.staff.filter((c) => c.todayId !== row?.id),
+        },
+      }));
+    } else {
+      const row = staffChange[i];
+      if (row?.todayId != null) return; // speglade rader tas bort från nuläget
+      setStaffChange(staffChange.filter((_, idx) => idx !== i));
+    }
+  };
+
+  /** Avveckla en speglad rad: 0 timmar, finansiell nytta, motivering krävs. */
+  const retireStaff = (i: number) => {
+    const row = staffChange[i];
+    if (!row) return;
+    updateStaff(i, { hours: 0, benefitType: "Finansiell nytta 💰" });
+    if (!row.desc.trim())
+      toast.info("Ange en motivering till avvecklingen i beskrivningsfältet.");
+  };
 
   const suggestCosts = async () => {
     setLoading(true);
