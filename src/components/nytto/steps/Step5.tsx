@@ -180,7 +180,7 @@ export function Step5() {
 
       <SectionCard
         title="Kostnad idag vs vid förändring"
-        description="Summa nuvärde över kalkylperioden i tre scenarier."
+        description="Summa nuvärde över kalkylperioden i tre scenarier. Sämsta = låg kostnad idag och hög kostnad vid förändring; bästa = tvärtom. Felmarginalen gäller kostnadsposter, inte personal."
         action={
           <AiButton onClick={() => void runReview()} loading={loading}>
             AI-granskning
