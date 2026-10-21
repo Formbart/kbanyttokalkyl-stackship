@@ -408,8 +408,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
             const match = staffMatches[i];
             const baseline = match == null ? undefined : staffToday[match];
             const retained = scenario === "change" && (row as StaffChange).benefitType === "Omfördelningsnytta ↺" && baseline;
-            const costPerson = retained ? baseline : row;
-            const annual = staffAnnualCost(costPerson.salary, costPerson.hours, costPerson.count ?? 1);
+            const annual = staffAnnualCost(row.salary, row.hours, count);
             const employmentRate = row.hours / FULL_TIME_HOURS;
             const monthlySalaryAtRate = row.salary * employmentRate;
             const forvaltning = row.forvaltning ?? FORVALTNING_OVRIGT;
@@ -660,7 +659,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                     />
                   </Field>
                   {scenario === "change" && (
-                    <Field label={<CostLabel />}>
+                    <Field
+                      label={<CostLabel />}
+                      hint={retained ? `Kvarstående lönekostnad i kalkylen: ${formatKr(staffAnnualCost(baseline.salary, baseline.hours, baseline.count ?? 1))}/år. Frigjord tid redovisas separat som omfördelningsnytta.` : count > 1 ? `Totalt för ${count} personer` : ""}
+                    >
                       <div className="num flex h-9 items-center rounded-md bg-brand-soft px-3 text-sm font-semibold text-brand-dark">
                         {formatKr(annual)}
                       </div>
