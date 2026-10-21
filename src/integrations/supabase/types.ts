@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           data: Json
           id: string
+          share_token: string | null
           title: string
           updated_at: string
           user_id: string
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string
           data: Json
           id?: string
+          share_token?: string | null
           title?: string
           updated_at?: string
           user_id: string
@@ -35,6 +37,7 @@ export type Database = {
           created_at?: string
           data?: Json
           id?: string
+          share_token?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -121,6 +124,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_shared_calculation: {
+        Args: { _token: string }
+        Returns: {
+          data: Json
+          title: string
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
