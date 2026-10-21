@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { initialState, type AppState } from "./types";
+import { migrateState } from "./calc";
 
 export interface SavedCalculation {
   id: string;
@@ -92,7 +93,7 @@ function parseCalculation(title: string, raw: unknown): { title: string; state: 
   const base = initialState();
   return {
     title: data.title,
-    state: {
+    state: migrateState({
       project: { ...base.project, ...parsed.project, name: data.title },
       costToday: { ...base.costToday, ...parsed.costToday },
       costChange: { ...base.costChange, ...parsed.costChange },
@@ -102,7 +103,7 @@ function parseCalculation(title: string, raw: unknown): { title: string; state: 
       surveys: parsed.surveys ?? {},
       surveyResults: parsed.surveyResults ?? {},
 
-    },
+    }),
   };
 }
 
