@@ -111,18 +111,20 @@ export function computeCostSheet(
   calculationYears: number = DEFAULT_CALCULATION_YEARS,
   rate: number = DISCOUNT_RATE,
   baseline?: CostSheet<StaffToday>,
+  baseYear: number = startYear,
 ): SheetCalc {
   const matches = matchStaffRows(baseline?.staff ?? [], sheet.staff);
   let marginSum = 0;
-  const perYear: YearRow[] = years(startYear, calculationYears).map((year, i) => {
+  const perYear: YearRow[] = years(startYear, calculationYears).map((year) => {
     let oneTime = 0;
     let recurring = 0;
     let annualMargin = 0;
     sheet.items.forEach((it) => {
       if (it.startYear === null || it.startYear > year) return;
+      // Engångskostnader räknas inte upp; löpande kostnader räknas upp från basåret.
       const value = it.type === "Engångskostnad"
         ? (it.startYear === year ? it.costPerYear || 0 : 0)
-        : (it.costPerYear || 0) * Math.pow(1 + (sheet.growth || 0) / 100, year - it.startYear);
+        : (it.costPerYear || 0) * Math.pow(1 + (sheet.growth || 0) / 100, year - baseYear);
       if (it.type === "Engångskostnad") oneTime += value;
       else recurring += value;
       annualMargin += Math.abs(value) * (it.margin || 0) / 100;
@@ -133,11 +135,10 @@ export function computeCostSheet(
       const retained = "benefitType" in c && c.benefitType === "Omfördelningsnytta ↺" && t;
       const person = retained ? t : c;
       const growth = retained ? baseline?.growth ?? 0 : sheet.growth;
-      return sum + staffAnnualCost(person.salary, person.hours, person.count ?? 1) * Math.pow(1 + (growth || 0) / 100, i);
+      return sum + staffAnnualCost(person.salary, person.hours, person.count ?? 1) * Math.pow(1 + (growth || 0) / 100, year - baseYear);
     }, 0);
-    annualMargin += Math.abs(staffCost) * staffMarginOf(sheet) / 100;
     const total = oneTime + recurring + staffCost;
-    const discount = Math.pow(1 + rate, -i);
+    const discount = Math.pow(1 + rate, -(year - baseYear));
     marginSum += annualMargin * discount;
     return { year, oneTime, recurring, staffCost, total, npv: total * discount };
   });
@@ -145,14 +146,54 @@ export function computeCostSheet(
   return { perYear, npvSum, marginSum, best: npvSum - marginSum, worst: npvSum + marginSum };
 }
 
+/**
+ * Personalmarginalen slår bara på det som skiljer alternativen åt:
+ * |kostnad förändring − kostnad nuläge| per kopplad rad. Omfördelningsrader
+ * (lönen behålls) och oförändrade rader bidrar med 0, nya rader med hela sin
+ * kostnad och avvecklade rader med hela nulägeskostnaden.
+ */
+function staffDifferenceMargin(state: AppState, baseYear: number, rate: number): number {
+  const margin = staffMarginOf(state.costChange);
+  if (margin <= 0) return 0;
+  const today = state.costToday.staff;
+  const change = state.costChange.staff;
+  if (today.length === 0 && change.length === 0) return 0;
+  const matches = matchStaffRows(today, change);
+  const matchedToday = new Set(matches.filter((m): m is number => m !== null));
+  let sum = 0;
+  years(state.project.startYear, calcYears(state)).forEach((year) => {
+    let diff = 0;
+    change.forEach((c, j) => {
+      const match = matches[j];
+      const t = match == null ? undefined : today[match];
+      if (c.benefitType === "Omfördelningsnytta ↺" && t) return; // lönen behålls: ingen skillnad
+      const changeCost = staffAnnualCost(c.salary, c.hours, c.count ?? 1) * Math.pow(1 + (state.costChange.growth || 0) / 100, year - baseYear);
+      const todayCost = t ? staffAnnualCost(t.salary, t.hours, t.count ?? 1) * Math.pow(1 + (state.costToday.growth || 0) / 100, year - baseYear) : 0;
+      diff += Math.abs(changeCost - todayCost);
+    });
+    today.forEach((t, j) => {
+      if (matchedToday.has(j)) return; // avvecklade rader utan motpart
+      diff += Math.abs(staffAnnualCost(t.salary, t.hours, t.count ?? 1) * Math.pow(1 + (state.costToday.growth || 0) / 100, year - baseYear));
+    });
+    sum += diff * margin / 100 * Math.pow(1 + rate, -(year - baseYear));
+  });
+  return sum;
+}
+
 /** The single scenario calculation entry point, including retained salaries. */
 export function computeProjectCosts(state: AppState) {
   const rate = discountRate(state);
   const n = calcYears(state);
-  return {
-    todayCalc: computeCostSheet(state.costToday, state.project.startYear, n, rate),
-    changeCalc: computeCostSheet(state.costChange, state.project.startYear, n, rate, state.costToday),
-  };
+  const baseYear = baseYearOf(state);
+  const todayCalc = computeCostSheet(state.costToday, state.project.startYear, n, rate, undefined, baseYear);
+  const changeCalc = computeCostSheet(state.costChange, state.project.startYear, n, rate, state.costToday, baseYear);
+  const staffMargin = staffDifferenceMargin(state, baseYear, rate);
+  if (staffMargin > 0) {
+    changeCalc.marginSum += staffMargin;
+    changeCalc.best -= staffMargin;
+    changeCalc.worst += staffMargin;
+  }
+  return { todayCalc, changeCalc };
 }
 
 export interface Reallocation { hoursFreed: number; valueFreed: number; }
