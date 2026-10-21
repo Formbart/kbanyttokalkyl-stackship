@@ -556,8 +556,9 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <Field label="Förvaltning">
+                  <Field label="Förvaltning" hint={mirrored ? "Ändras i nuläget (steg 2)" : undefined}>
                     <Select
+                      disabled={mirrored}
                       value={row.forvaltning ?? FORVALTNING_OVRIGT}
                       onValueChange={(v) =>
                         updateStaff(i, {
@@ -583,9 +584,10 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Befattning">
+                  <Field label="Befattning" hint={mirrored ? "Ändras i nuläget (steg 2)" : undefined}>
                     {isOvrigt ? (
                       <Select
+                        disabled={mirrored}
                         value={row.role}
                         onValueChange={(v) => {
                           const salary = ROLE_SALARIES[v];
@@ -616,6 +618,7 @@ export function CostSheetEditor({ scenario }: { scenario: Scenario }) {
                       </p>
                     ) : (
                       <Select
+                        disabled={mirrored}
                         value={
                           row.positionIndex === null ||
                           row.positionIndex === undefined
