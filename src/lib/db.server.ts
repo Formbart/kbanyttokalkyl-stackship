@@ -4,13 +4,36 @@ import pg from "pg";
 
 let pool: pg.Pool | undefined;
 
+/**
+ * Stackship ger en connection string med `?sslmode=require`. Nyare `pg` tolkar
+ * det som full certifikatkontroll, vilket fallerar mot klustrets egna CA.
+ * Vi tar därför bort sslmode ur URL:en och sätter TLS-inställningen själva:
+ * kryptering när sslmode kräver det, utan kontroll av certifikatkedjan
+ * (som libpq gör vid sslmode=require).
+ */
+function poolConfig(raw: string): pg.PoolConfig {
+  let connectionString = raw;
+  let ssl: pg.PoolConfig["ssl"] = undefined;
+  try {
+    const url = new URL(raw);
+    const mode = url.searchParams.get("sslmode");
+    url.searchParams.delete("sslmode");
+    connectionString = url.toString();
+    if (mode === "verify-full" || mode === "verify-ca") ssl = { rejectUnauthorized: true };
+    else if (mode && mode !== "disable" && mode !== "allow" && mode !== "prefer") ssl = { rejectUnauthorized: false };
+  } catch {
+    // Ej en URL (t.ex. nyckel=värde-format) – skicka vidare oförändrad.
+  }
+  return { connectionString, ssl, max: 5, idleTimeoutMillis: 30_000 };
+}
+
 export function getPool(): pg.Pool {
   if (!pool) {
     const connectionString = process.env["DATABASE_URL"];
     if (!connectionString) {
       throw new Error("DATABASE_URL saknas. Sätt den på containern i Stackship.");
     }
-    pool = new pg.Pool({ connectionString, max: 5, idleTimeoutMillis: 30_000 });
+    pool = new pg.Pool(poolConfig(connectionString));
     pool.on("error", (error) => console.error("[db] idle client error", error));
   }
   return pool;
