@@ -41,7 +41,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { STEPS } from "./StepNav";
 import type { PrintStep } from "./PrintView";
 import { exportNyttokalkylToExcel } from "@/lib/nyttokalkyl/exportExcel";
-import { supabase } from "@/integrations/supabase/client";
+import { signOut } from "@/lib/auth.functions";
 import { useSession } from "@/hooks/useSession";
 import { saveCalculation } from "@/lib/nyttokalkyl/saved";
 import { GLOSSARY } from "@/lib/nyttokalkyl/glossary";
@@ -165,7 +165,7 @@ export function AppHeader({
   };
 
   const onSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut().catch(() => undefined);
     void navigate({ to: "/auth", replace: true });
   };
 

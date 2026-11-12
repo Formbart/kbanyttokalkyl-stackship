@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { getSessionInfo, signIn } from "@/lib/auth.functions";
 import loginBg from "@/assets/hermerin-login-bg.jpg.asset.json";
 
 export const Route = createFileRoute("/auth")({
@@ -37,8 +37,8 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      if (data.user) void navigate({ to: "/kalkyl", replace: true });
+    void getSessionInfo().then((info) => {
+      if (info.user) void navigate({ to: "/kalkyl", replace: true });
     });
   }, [navigate]);
 
@@ -46,12 +46,14 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    let ok = false;
+    try {
+      ok = (await signIn({ data: { email: email.trim(), password } })).ok;
+    } catch {
+      ok = false;
+    }
     setBusy(false);
-    if (signInError) {
+    if (!ok) {
       setError("Fel e-postadress eller lösenord.");
       return;
     }

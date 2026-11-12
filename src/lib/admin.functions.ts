@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  assertAdmin,
+  assertSuperAdmin,
+  requireAuth,
+  type AuthContext,
+} from "@/lib/auth-middleware";
 import { FORVALTNINGAR } from "@/lib/nyttokalkyl/types";
 
 export type AppRole = "user" | "admin" | "superadmin";
@@ -14,187 +19,162 @@ export interface AppUserRow {
   createdAt: string;
 }
 
-async function assertRole(
-  context: {
-    supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
-    userId: string;
-  },
-  role: AppRole,
-  message: string,
-) {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: role,
-  });
-  if (data !== true) throw new Error(message);
-}
-
-async function assertAdmin(context: {
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
-  userId: string;
-}) {
-  const [admin, superadmin] = await Promise.all([
-    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
-    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "superadmin" }),
-  ]);
-  if (admin.data !== true && superadmin.data !== true) throw new Error("Endast administratörer har tillgång.");
-}
-
-async function assertSuperAdmin(context: {
-  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
-  userId: string;
-}) {
-  await assertRole(context, "superadmin", "Endast superadministratörer kan ändra roller.");
-}
-
-function generatePassword(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const bytes = new Uint8Array(14);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("") + "!7";
-}
+const db = () => import("@/lib/db.server");
+const auth = () => import("@/lib/auth.server");
 
 export const listAppUsers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .handler(async ({ context }): Promise<AppUserRow[]> => {
-    await assertAdmin(context as never);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: profiles, error } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, full_name, forvaltning, created_at")
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
-    const { data: roles } = await supabaseAdmin.from("user_roles").select("user_id, role");
-    const rolesByUser = new Map<string, AppRole[]>();
-    for (const r of roles ?? []) {
-      const list = rolesByUser.get(r.user_id) ?? [];
-      list.push(r.role as AppRole);
-      rolesByUser.set(r.user_id, list);
-    }
-    return (profiles ?? []).map((p) => {
-      const userRoles = rolesByUser.get(p.id) ?? [];
+    assertAdmin(context as AuthContext);
+    const { query } = await db();
+    const rows = await query<{
+      id: string;
+      email: string;
+      full_name: string | null;
+      forvaltning: string | null;
+      created_at: Date;
+      roles: AppRole[] | null;
+    }>(
+      `SELECT u.id, u.email, p.full_name, p.forvaltning, u.created_at,
+              array_remove(array_agg(r.role ORDER BY r.role), NULL) AS roles
+         FROM users u
+         LEFT JOIN profiles p ON p.id = u.id
+         LEFT JOIN user_roles r ON r.user_id = u.id
+        GROUP BY u.id, u.email, p.full_name, p.forvaltning, u.created_at
+        ORDER BY u.created_at`,
+    );
+    return rows.map((r) => {
+      const roles = r.roles ?? [];
       return {
-        id: p.id,
-        email: p.email,
-        fullName: p.full_name,
-        forvaltning: p.forvaltning ?? null,
-        roles: userRoles,
-        isAdmin: userRoles.includes("admin") || userRoles.includes("superadmin"),
-        createdAt: p.created_at,
+        id: r.id,
+        email: r.email,
+        fullName: r.full_name,
+        forvaltning: r.forvaltning,
+        roles,
+        isAdmin: roles.includes("admin") || roles.includes("superadmin"),
+        createdAt: new Date(r.created_at).toISOString(),
       };
     });
   });
 
 /** Superadministratör sätter rollen för ett konto (en roll per konto). */
 export const setAppUserRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((data: { userId: string; role: string }) => {
     const role = data.role as AppRole;
-    if (!["user", "admin", "superadmin"].includes(role)) {
-      throw new Error("Ogiltig roll.");
-    }
-    return { userId: data.userId, role };
+    if (!["user", "admin", "superadmin"].includes(role)) throw new Error("Ogiltig roll.");
+    return { userId: String(data.userId), role };
   })
   .handler(async ({ data, context }) => {
-    await assertSuperAdmin(context as never);
-    if (data.userId === (context as { userId: string }).userId) {
-      throw new Error("Du kan inte ändra rollen på ditt eget konto.");
-    }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: deleteError } = await supabaseAdmin
-      .from("user_roles")
-      .delete()
-      .eq("user_id", data.userId);
-    if (deleteError) throw new Error(deleteError.message);
-    const { error: insertError } = await supabaseAdmin
-      .from("user_roles")
-      .insert({ user_id: data.userId, role: data.role });
-    if (insertError) throw new Error(insertError.message);
+    const ctx = context as AuthContext;
+    assertSuperAdmin(ctx);
+    if (data.userId === ctx.userId) throw new Error("Du kan inte ändra rollen på ditt eget konto.");
+    const { transaction } = await db();
+    await transaction(async (client) => {
+      await client.query("DELETE FROM user_roles WHERE user_id = $1", [data.userId]);
+      await client.query("INSERT INTO user_roles (user_id, role) VALUES ($1, $2)", [
+        data.userId,
+        data.role,
+      ]);
+    });
     return { ok: true };
   });
 
 /** Superadministratör kopplar ett konto till en förvaltning (eller ingen). */
 export const setAppUserForvaltning = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((data: { userId: string; forvaltning: string | null }) => {
     const value = (data.forvaltning ?? "").trim();
-    if (value !== "" && !FORVALTNINGAR.includes(value)) {
-      throw new Error("Okänd förvaltning.");
-    }
-    return { userId: data.userId, forvaltning: value === "" ? null : value };
+    if (value !== "" && !FORVALTNINGAR.includes(value)) throw new Error("Okänd förvaltning.");
+    return { userId: String(data.userId), forvaltning: value === "" ? null : value };
   })
   .handler(async ({ data, context }) => {
-    await assertSuperAdmin(context as never);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .update({ forvaltning: data.forvaltning })
-      .eq("id", data.userId);
-    if (error) throw new Error(error.message);
+    assertSuperAdmin(context as AuthContext);
+    const { query } = await db();
+    await query("UPDATE profiles SET forvaltning = $1 WHERE id = $2", [
+      data.forvaltning,
+      data.userId,
+    ]);
     return { ok: true };
   });
 
 export const createAppUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator((data: { email: string; fullName?: string }) => {
     const email = data.email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Ogiltig e-postadress.");
     return { email, fullName: (data.fullName ?? "").trim().slice(0, 120) };
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    assertAdmin(context as AuthContext);
+    const { query, transaction } = await db();
+    const { hashPassword, generatePassword } = await auth();
+    const existing = await query("SELECT 1 FROM users WHERE email = $1", [data.email]);
+    if (existing[0]) throw new Error("Det finns redan ett konto med den e-postadressen.");
     const password = generatePassword();
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: data.fullName || null },
+    const passwordHash = await hashPassword(password);
+    const id = await transaction(async (client) => {
+      const { rows } = await client.query<{ id: string }>(
+        "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
+        [data.email, passwordHash],
+      );
+      const userId = rows[0]!.id;
+      // Triggern on_user_created har redan skapat profil och rollen 'user'.
+      await client.query("UPDATE profiles SET full_name = $1 WHERE id = $2", [
+        data.fullName || null,
+        userId,
+      ]);
+      return userId;
     });
-    if (error || !created.user) {
-      throw new Error(error?.message ?? "Kunde inte skapa användaren.");
-    }
-    await supabaseAdmin
-      .from("profiles")
-      .upsert({ id: created.user.id, email: data.email, full_name: data.fullName || null });
-    await supabaseAdmin
-      .from("user_roles")
-      .upsert({ user_id: created.user.id, role: "user" }, { onConflict: "user_id,role" });
-    return { id: created.user.id, email: data.email, password };
+    return { id, email: data.email, password };
   });
 
 export const deleteAppUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => data)
+  .middleware([requireAuth])
+  .inputValidator((data: { userId: string }) => ({ userId: String(data.userId) }))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
-    if (data.userId === (context as { userId: string }).userId) {
+    const ctx = context as AuthContext;
+    assertAdmin(ctx);
+    if (data.userId === ctx.userId) {
       throw new Error("Du kan inte radera ditt eget administratörskonto här.");
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("calculations").delete().eq("user_id", data.userId);
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    const { query } = await db();
+    const target = await query<{ is_super: boolean }>(
+      "SELECT has_role($1, 'superadmin') AS is_super",
+      [data.userId],
+    );
+    if (target[0]?.is_super) {
+      assertSuperAdmin(ctx, "Endast superadministratörer kan radera en superadministratör.");
+      const supers = await query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM user_roles WHERE role = 'superadmin'",
+      );
+      if ((supers[0]?.n ?? 0) <= 1) throw new Error("Den sista superadministratören kan inte raderas.");
+    }
+    // Kalkyler, profil, roller och sessioner raderas via ON DELETE CASCADE.
+    await query("DELETE FROM users WHERE id = $1", [data.userId]);
     return { ok: true };
   });
 
 export const resetAppUserPassword = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: { userId: string }) => data)
+  .middleware([requireAuth])
+  .inputValidator((data: { userId: string }) => ({ userId: String(data.userId) }))
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    assertAdmin(context as AuthContext);
+    const { query } = await db();
+    const { hashPassword, generatePassword } = await auth();
     const password = generatePassword();
-    const { data: updated, error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
-      password,
-    });
-    if (error || !updated.user) throw new Error(error?.message ?? "Kunde inte byta lösenord.");
-    return { email: updated.user.email ?? "", password };
+    const rows = await query<{ email: string }>(
+      "UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING email",
+      [await hashPassword(password), data.userId],
+    );
+    if (!rows[0]) throw new Error("Kunde inte byta lösenord.");
+    await query("DELETE FROM sessions WHERE user_id = $1", [data.userId]);
+    return { email: rows[0].email, password };
   });
 
 /** Skickar inloggningsuppgifterna vidare till n8n, som mejlar användaren. */
 export const sendCredentials = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAuth])
   .inputValidator(
     (data: {
       email: string;
@@ -209,9 +189,11 @@ export const sendCredentials = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context as never);
+    assertAdmin(context as AuthContext);
     const baseUrl = process.env["N8N_BASE_URL"]?.replace(/\/$/, "");
-    const url = baseUrl ? `${baseUrl}/webhook/99a7a6e8-e622-4f99-bd69-748a0ab4c6b4` : process.env["N8N_USER_WEBHOOK_URL"];
+    const url = baseUrl
+      ? `${baseUrl}/webhook/99a7a6e8-e622-4f99-bd69-748a0ab4c6b4`
+      : process.env["N8N_USER_WEBHOOK_URL"];
     const apiKey = process.env["N8N_MAIL_API_KEY"];
     if (!url || !apiKey) {
       return { sent: false, reason: "missing_webhook" as const };
@@ -224,7 +206,7 @@ export const sendCredentials = createServerFn({ method: "POST" })
         body: JSON.stringify({
           email: data.email,
           password: data.password,
-           event: data.event,
+          event: data.event,
         }),
       });
       if (!res.ok) {

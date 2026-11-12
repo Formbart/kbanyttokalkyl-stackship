@@ -5,13 +5,17 @@ vi.mock("@tanstack/react-start", () => ({
     const builder = { middleware: () => builder, inputValidator: () => builder, handler: (fn: unknown) => fn };
     return builder;
   },
+  createMiddleware: () => ({ server: () => ({}) }),
 }));
-vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
+vi.mock("@/lib/auth-middleware", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth-middleware")>()),
+  requireAuth: {},
+}));
 import { sendCredentials } from "./admin.functions";
 
 const invoke = sendCredentials as unknown as (input: unknown) => Promise<{ sent: boolean }>;
 const payload = { email: "recipient@example.test", password: "fixture-not-a-real-password", event: "account_created" };
-const context = (role: string) => ({ userId: "fixture-user", supabase: { rpc: async (_fn: string, args: { _role: string }) => ({ data: role === args._role }) } });
+const context = (role: string) => ({ userId: "fixture-user", email: "fixture@example.test", roles: [role], forvaltning: null });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 it("rejects ordinary users before sending credential mail", async () => {

@@ -1,48 +1,37 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Engångsuppsättning av administratörskontot. Anropet är idempotent: när kontot
- * redan finns görs ingenting utom att administratörsrollen säkerställs.
+ * Engångsuppsättning av ett superadministratörskonto. Anropet är idempotent:
+ * när kontot redan finns görs ingenting utom att superadmin-rollen säkerställs.
+ * Svarar 404 om ADMIN_BOOTSTRAP_EMAIL/ADMIN_BOOTSTRAP_PASSWORD inte är satta.
  */
 export const Route = createFileRoute("/api/public/bootstrap-admin")({
   server: {
     handlers: {
       POST: async () => {
-        const email = process.env["ADMIN_BOOTSTRAP_EMAIL"];
+        const email = process.env["ADMIN_BOOTSTRAP_EMAIL"]?.trim().toLowerCase();
         const password = process.env["ADMIN_BOOTSTRAP_PASSWORD"];
         if (!email || !password) {
-          return Response.json({ ok: false, error: "missing_config" }, { status: 400 });
+          return Response.json({ ok: false }, { status: 404 });
         }
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { query } = await import("@/lib/db.server");
+        const { hashPassword } = await import("@/lib/auth.server");
 
-        const { data: existing } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .eq("email", email)
-          .maybeSingle();
-
-        let userId = existing?.id ?? null;
+        const existing = await query<{ id: string }>("SELECT id FROM users WHERE email = $1", [email]);
+        let userId = existing[0]?.id ?? null;
         if (!userId) {
-          const { data, error } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: { full_name: "Lev Grünberg" },
-          });
-          if (error || !data.user) {
-            return Response.json({ ok: false, error: error?.message }, { status: 500 });
-          }
-          userId = data.user.id;
-          await supabaseAdmin
-            .from("profiles")
-            .upsert({ id: userId, email, full_name: "Lev Grünberg" });
+          const rows = await query<{ id: string }>(
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
+            [email, await hashPassword(password)],
+          );
+          userId = rows[0]!.id;
         }
-
-        await supabaseAdmin
-          .from("user_roles")
-          .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-
-        return Response.json({ ok: true, created: !existing });
+        await query(
+          `INSERT INTO user_roles (user_id, role) VALUES ($1, 'superadmin')
+           ON CONFLICT (user_id, role) DO NOTHING`,
+          [userId],
+        );
+        return Response.json({ ok: true, created: !existing[0] });
       },
     },
   },

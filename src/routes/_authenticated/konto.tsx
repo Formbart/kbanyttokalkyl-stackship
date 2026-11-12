@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { changePassword as changePasswordFn, signOut } from "@/lib/auth.functions";
 import { deleteOwnAccount } from "@/lib/account.functions";
 import { useSession } from "@/hooks/useSession";
 
@@ -57,15 +57,14 @@ function KontoPage() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({
-      password: next,
-      ...({ current_password: current } as Record<string, string>),
-    });
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await changePasswordFn({ data: { currentPassword: current, newPassword: next } });
+    } catch (error) {
+      setBusy(false);
+      toast.error(error instanceof Error ? error.message : "Lösenordet kunde inte bytas.");
       return;
     }
+    setBusy(false);
     setCurrent("");
     setNext("");
     setRepeat("");
@@ -75,7 +74,7 @@ function KontoPage() {
   const removeAccount = async () => {
     try {
       await deleteOwnAccount();
-      await supabase.auth.signOut();
+      await signOut().catch(() => undefined);
       void navigate({ to: "/auth", replace: true });
     } catch {
       toast.error("Kontot kunde inte raderas. Försök igen.");

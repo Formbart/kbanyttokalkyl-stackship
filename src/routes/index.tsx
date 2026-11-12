@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSessionInfo } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -28,9 +28,9 @@ function Landing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      void navigate({ to: data.user ? "/kalkyl" : "/auth", replace: true });
-    });
+    void getSessionInfo()
+      .then((info) => navigate({ to: info.user ? "/kalkyl" : "/auth", replace: true }))
+      .catch(() => navigate({ to: "/auth", replace: true }));
   }, [navigate]);
 
   return (
